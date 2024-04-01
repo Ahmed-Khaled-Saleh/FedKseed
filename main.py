@@ -141,7 +141,7 @@ if __name__ == '__main__':
                 'eval_avg_acc': eval_avg_acc
             }, writer)
     for r in range(1, args.rounds + 1):
-        run.warch(server.model)
+        run.watch(server.model)
         selected_client = [client_list[i] for i in client_indices_rounds[r-1]]
         if args.bias_sampling:
             probabilities = server.calculate_probabilities()
