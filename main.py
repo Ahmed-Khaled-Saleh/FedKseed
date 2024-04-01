@@ -23,6 +23,8 @@ def setup_seed(seed):
 
 
 if __name__ == '__main__':
+    wandb.login(key="0c6ac9fee5239a432529a35c7433d121ec9c9f37",
+           verify=True)
     parser = argparse.ArgumentParser()
     
     # Federation
