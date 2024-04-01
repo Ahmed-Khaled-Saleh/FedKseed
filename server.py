@@ -44,7 +44,7 @@ class Server(object):
         # self.model = AutoModelForCausalLM.from_pretrained(args.model, device_map='cpu', torch_dtype=torch.float16, trust_remote_code=True)
 
         base_model = AutoModelForCausalLM.from_pretrained(args.model)
-        loftq_config = LoftQConfig(r = args.r, loftq_bits=4)
+        loftq_config = LoftQConfig(r = self.args.r, loftq_bits=4)
         lora_config = LoraConfig(init_lora_weights="loftq", loftq_config=loftq_config)
         self.model = get_peft_model(base_model, lora_config)
         from copy import deepcopy
