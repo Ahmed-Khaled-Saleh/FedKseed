@@ -86,9 +86,6 @@ if __name__ == '__main__':
     name = time_stamp + '_r' + str(args.r) + '_' + args.model.split('/')[-1] + '_' + args.dataset + '_' + str(args.local_step)
     run = wandb.init(project='FEDKSEED', name= name, config=args)
     
-    # add run to args
-    args.run = run
-
     eval_avg_acc = []
     memory_record_dic = {}
     
@@ -142,6 +139,7 @@ if __name__ == '__main__':
                 'eval_avg_acc': eval_avg_acc
             }, writer)
     for r in range(1, args.rounds + 1):
+        run.warch(server.model)
         selected_client = [client_list[i] for i in client_indices_rounds[r-1]]
         if args.bias_sampling:
             probabilities = server.calculate_probabilities()
@@ -156,6 +154,7 @@ if __name__ == '__main__':
         # server gets the latest global model from the accumulated scalar gradients
         server.update_global_model_by_seed_pool()
         eval_result = server.eval(cur_round=r, eval_avg_acc=eval_avg_acc)
+        run.log({"global_loss":eval_result})
         eval_avg_acc.append(eval_result)
         if args.log:
             with open(os.path.join(log_dir, 'memory.json'), 'w') as writer:

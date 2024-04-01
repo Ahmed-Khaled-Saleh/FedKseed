@@ -47,7 +47,6 @@ class Server(object):
         loftq_config = LoftQConfig(r = args.r, loftq_bits=4)
         lora_config = LoraConfig(init_lora_weights="loftq", loftq_config=loftq_config)
         self.model = get_peft_model(base_model, lora_config)
-        self.args.run.warch(self.model)
         from copy import deepcopy
         self.model_w0 = deepcopy(self.model)
         self.seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
@@ -152,8 +151,7 @@ class Server(object):
             eval_metric = self.eval_loss(cur_round)
         else:
             eval_metric =  self.eval_generate(cur_round)
-            # log the eval_metric
-            self.args.run.log({"global_loss":eval_metric})
+            
         if self.args.save and cur_round > 0:
             save_dir = self.log_dir
             if not os.path.exists(save_dir):
