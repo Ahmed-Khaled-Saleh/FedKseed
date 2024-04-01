@@ -1,5 +1,5 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import LoftQConfig, LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model
 import torch
 from tqdm import tqdm
 from evaluations import *
@@ -43,11 +43,17 @@ class Server(object):
         
         # self.model = AutoModelForCausalLM.from_pretrained(args.model, device_map='cpu', torch_dtype=torch.float16, trust_remote_code=True)
 
-        base_model = AutoModelForCausalLM.from_pretrained(args.model)
-        loftq_config = LoftQConfig(r = self.args.r, loftq_bits=4)
-        lora_config = LoraConfig(init_lora_weights="loftq", loftq_config=loftq_config)
-        self.model = get_peft_model(base_model, lora_config)
+        self.base_model = AutoModelForCausalLM.from_pretrained(args.model)
         from copy import deepcopy
+        config = LoraConfig(
+            r=self.args.r,
+            lora_alpha=16,
+            lora_dropout=0.1,
+            bias="none")
+        self.model = get_peft_model(deepcopy(self.base_model), config)
+
+
+
         self.model_w0 = deepcopy(self.model)
         self.seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
         
