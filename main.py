@@ -7,7 +7,7 @@ import torch
 from server import Server
 from client import Client
 from utils_data.load_data import get_loaders
-
+import wandb
 import yaml
 from copy import deepcopy
 import json
@@ -74,8 +74,20 @@ if __name__ == '__main__':
     # Checkpoints
     parser.add_argument('--save', default=False, action='store_true', help='if `true`, the checkpoint of tuned models will be stored')
 
+    #lora rank
+    parser.add_argument('--r', type= int, default=16, help='lora rank')
+    parser.add_argument('--project', default='FEDKSEED',  type=str, choices=['FEDKSEED', 'FEDULLM'])
+
+
     time_stamp = str(time.time())
     args = parser.parse_args()
+
+    # Experiment name: time_stamp+_args.r+_args.model+args.dataset+args.local_steps
+    name = time_stamp + '_r' + str(args.r) + '_' + args.model.split('/')[-1] + '_' + args.dataset + '_' + str(args.local_step)
+    run = wandb.init(project='FEDKSEED', name= name, config=args)
+    
+    # add run to args
+    args.run = run
 
     eval_avg_acc = []
     memory_record_dic = {}
