@@ -44,7 +44,7 @@ class Server(object):
         # self.model = AutoModelForCausalLM.from_pretrained(args.model, device_map='cpu', torch_dtype=torch.float16, trust_remote_code=True)
 
         self.base_model = AutoModelForCausalLM.from_pretrained(args.model)
-        from copy import deepcopy
+        
         config = LoraConfig(
             r=self.args.r,
             lora_alpha=16,

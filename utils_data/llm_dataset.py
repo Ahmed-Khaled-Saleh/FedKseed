@@ -163,8 +163,10 @@ class LLMDataCollator(object):
             labels,
             batch_first=True,
             padding_value=DefaultToken.IGNORE_INDEX.value)
+        categories = torch.tensor([instance["categories"] for instance in instances])
         return dict(
             input_ids=input_ids,
             labels=labels,
+            categories=categories,
             attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
         )

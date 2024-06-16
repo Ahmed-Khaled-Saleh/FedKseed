@@ -6,11 +6,13 @@ import numpy as np
 import torch
 from server import Server
 from client import Client
-from utils_data.load_data import get_loaders
+# from utils_data.load_data import get_loaders
+from utils_data.mtl_dataset import get_loaders
 import wandb
 import yaml
 from copy import deepcopy
 import json
+from dotenv import load_dotenv
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
@@ -23,8 +25,10 @@ def setup_seed(seed):
 
 
 if __name__ == '__main__':
-    wandb.login(key="0c6ac9fee5239a432529a35c7433d121ec9c9f37",
-           verify=True)
+    load_dotenv()
+    key = os.getenv("WANDB_API_KEY")
+    wandb.login(key=key,
+                verify=True)
     parser = argparse.ArgumentParser()
     
     # Federation
