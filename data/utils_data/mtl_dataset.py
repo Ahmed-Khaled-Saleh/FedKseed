@@ -280,7 +280,7 @@ def get_loaders(args, only_eval=False):
 
         
     elif args.dataset in ['instruct']:
-        from utils_data.natural_instruction_loader import get_instruction_dataset
+        from data.utils_data.natural_instruction_loader import get_instruction_dataset
         list_train_loader, eval_loader = get_instruction_dataset(args, tokenizer, only_eval=only_eval)
     else:
         raise AttributeError(f'dataset {args.dataset} not implemented')
