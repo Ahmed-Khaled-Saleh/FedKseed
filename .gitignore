@@ -1,6 +1,8 @@
-*\__pycache__
-*\ckpt
-*\logs
+notebooks
+__pycache__
+*./__pycache__
+*/ckpt
+*/logs
 *.pth
 .idea
 *.jpg
@@ -10,10 +12,13 @@
 *.pickle
 *.bin
 *.json
-*.jsonl
+*.jsonl   
+*.ipynb_checkpoints
+# remoe folder notebok
+notebooks
 batch_*.py
 *.idea
 *.DS_Store
-
 exp/
 logs/
+*/*.ipynb
