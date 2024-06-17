@@ -8,7 +8,7 @@ from copy import deepcopy
 import os
 import math
 from optimizers.mezo_optimizer import *
-
+import numpy as np
 
 def softmax(vec):
     vec = vec - np.max(vec)
@@ -173,60 +173,88 @@ class Server(object):
             torch.save(self.model.state_dict(), os.path.join(save_dir, f'model_state_dict_final_round{cur_round}.bin'))
         return eval_metric
 
-    def eval_loss(self, cur_round):
+    def eval_loss(self, cur_round, strategy = 'local'):
         self.model = self.model.to(self.device)
         self.model.eval()
         
-        progress_bar_eval = tqdm(range(len(self.eval_loader)))
+        # progress_bar_eval = tqdm(range(len(self.eval_loader)))
         loss_total_eval = 0.0
         num_eval = 0
-        
-        with torch.inference_mode():
-            for batch in self.eval_loader:
-                batch = {
-                    'input_ids': batch['input_ids'].to(self.device),
-                    'labels': batch['labels'].to(self.device),
-                    'attention_mask': batch['attention_mask'].to(self.device) 
-                }
-                outputs = self.model(**batch)
-                loss = outputs.loss
-                progress_bar_eval.update(1)
-                if torch.isnan(loss):
-                    continue
-                loss_total_eval += loss
-                num_eval += len(batch['input_ids'])
-                if num_eval == 0:
-                    num_eval = 1e-10
-                progress_bar_eval.set_description(f'eval at round {cur_round}, loss: {loss_total_eval / num_eval}')
+        loader_loss = 0.0
+        all_loss = []
+        loop = len(self.eval_loader)
+        if strategy == 'global' and isinstance(self.eval_loader, list):
+            choice = np.random.choice(len(self.eval_loader))
+            self.eval_loader = [self.eval_loader[choice]]
+            loop = 1
+        progress_bar_eval = tqdm(range(loop))
+
+        for i in range(loop):
+            with torch.no_grad():
+                for j, batch in enumerate(self.eval_loader[i]):
+                    batch = {
+                        'input_ids': batch['input_ids'].to(self.device),
+                        'labels': batch['labels'].to(self.device),
+                        'attention_mask': batch['attention_mask'].to(self.device) 
+                    }
+                    outputs = self.model(**batch)
+                    loss = outputs.loss
+                    progress_bar_eval.update(1)
+                    if torch.isnan(loss):
+                        continue
+                    loss_total_eval += loss
+                    num_eval += len(batch['input_ids'])
+                    if num_eval == 0:
+                        num_eval = 1e-10
+                    progress_bar_eval.set_description(f'eval at round {cur_round}, loss: {loss_total_eval / num_eval}')
+            
+            loader_loss = loss_total_eval / j
+            all_loss.append(loader_loss.item())
+            num_eval = 0
+
+                
         print()
         print()
         self.model = self.model.cpu()
-        return (loss_total_eval / num_eval).item()
+        return np.array(all_loss).mean()
 
-    def eval_generate(self, cur_round):
+    def eval_generate(self, cur_round, strategy = 'local'):
         self.model = self.model.to(self.device)
         self.model.eval()
         
-        progress_bar_eval = tqdm(range(len(self.eval_loader)))
+        
         acc_total_eval = 0.0
         num_eval = 0
+        all_rouges = []
+
+        loop = len(self.eval_loader)
         
-        with torch.inference_mode():
-            for batch in self.eval_loader:
-                input_ids = batch['input_ids'].to(self.device)
-                label_ids = batch['labels'].to(self.device)
-                output_ids = self.model.generate(
-                    input_ids=input_ids,
-                    max_new_tokens=128,
-                    num_beams=1,
-                )
-                acc_total_eval += rouge_score(output_ids[0][len(input_ids[0]):], label_ids[0], self.tokenizer)
-                progress_bar_eval.update(1)
-                num_eval += len(batch['input_ids'])
-                if num_eval == 0:
-                    num_eval = 1e-10
-                progress_bar_eval.set_description(f'eval at round {cur_round}, metric: {acc_total_eval / num_eval}')
-        print()
-        print()
+        if strategy == 'global' and isinstance(self.eval_loader, list):
+            choice = np.random.choice(len(self.eval_loader))
+            self.eval_loader = [self.eval_loader[choice]]
+            loop = 1
+        progress_bar_eval = tqdm(range(loop))
+        for i in range(loop):
+            with torch.inference_mode():
+                for j, batch in enumerate(self.eval_loader[i]):
+                    input_ids = batch['input_ids'].to(self.device)
+                    label_ids = batch['labels'].to(self.device)
+                    output_ids = self.model.generate(
+                        input_ids=input_ids,
+                        max_new_tokens=128,
+                        num_beams=1,
+                    )
+                    acc_total_eval += rouge_score(output_ids[0][len(input_ids[0]):], label_ids[0], self.tokenizer)
+                    progress_bar_eval.update(1)
+                    num_eval += len(batch['input_ids'])
+                    if num_eval == 0:
+                        num_eval = 1e-10
+                    progress_bar_eval.set_description(f'eval at round {cur_round}, metric: {acc_total_eval / num_eval}')
+            print()
+            print()
+            loader_acc = acc_total_eval / j
+            all_rouges.append(loader_acc)
+            num_eval = 0
+
         self.model = self.model.cpu()
-        return acc_total_eval / num_eval
+        return np.array(all_rouges).mean()
