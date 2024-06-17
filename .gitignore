@@ -1,4 +1,3 @@
-notebooks
 __pycache__
 *./__pycache__
 */ckpt
@@ -15,10 +14,8 @@ __pycache__
 *.jsonl   
 *.ipynb_checkpoints
 # remoe folder notebok
-notebooks
 batch_*.py
 *.idea
 *.DS_Store
 exp/
 logs/
-*/*.ipynb
