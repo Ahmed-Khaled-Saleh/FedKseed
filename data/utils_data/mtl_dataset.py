@@ -15,8 +15,8 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer
-from utils_data.default_tokens import DefaultToken
-from utils_data.partition_data import partition_idx_labeldir
+from default_tokens import DefaultToken
+from partition_data import partition_idx_labeldir
 from collections import Counter
 import os
 
