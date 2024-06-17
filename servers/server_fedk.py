@@ -24,7 +24,7 @@ class Server(object):
         self.log_dir = log_dir
         self.tokenizer.model_max_length = self.args.max_length
         special_tokens = dict()
-
+ 
         if self.tokenizer.pad_token is None:
             special_tokens["pad_token"] = DefaultToken.PAD_TOKEN.value
         if self.tokenizer.eos_token is None:
@@ -229,7 +229,7 @@ class Server(object):
             loop = 1
         progress_bar_eval = tqdm(range(loop))
         for i in range(loop):
-            with torch.inference_mode():
+            with torch.no_grad():
                 for j, batch in enumerate(self.eval_loader[i]):
                     input_ids = batch['input_ids'].to(self.device)
                     label_ids = batch['labels'].to(self.device)
