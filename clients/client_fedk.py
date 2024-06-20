@@ -71,13 +71,34 @@ class Client(object):
                     progress_bar.set_description(f'client {self.idx} train at step {cur_step}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
         # save both CPU and GPU memory
         del framework
-        self.model = None
+        # self.model = None
         
         if memory_record_dic is not None:
             memory_record_dic[self.device.index] = {}
             memory_record_dic[self.device.index]['max_memory_allocated'] = torch.cuda.max_memory_allocated(self.device)
             memory_record_dic[self.device.index]['max_memory_reserved'] = torch.cuda.max_memory_reserved(self.device)
 
+
+    def local_eval(self, eval_loader):
+        if self.model is None:
+            raise ValueError('model is not initialized')
+        self.model.to(self.device)
+        self.model.eval()
+        eval_loss = 0.0
+        num_evaluated = 0
+        with torch.no_grad():
+            for batch in eval_loader:
+                batch = {
+                    'input_ids': batch['input_ids'].to(self.device),
+                    'labels': batch['labels'].to(self.device),
+                    'attention_mask': batch['attention_mask'].to(self.device) 
+                }
+                logits = self.model(**batch)
+                loss = self.model.loss(logits, batch['labels'])
+                eval_loss += loss.item()
+                num_evaluated += len(batch['input_ids'])
+        return eval_loss / num_evaluated
+    
     def clear_model(self):
         # clear model to same memory
         self.model = None

@@ -41,12 +41,6 @@ def load_jsonl(file_path,
     return list_data_dict
 
 
-class DefaultToken(Enum):
-    PAD_TOKEN = "[PAD]"
-    EOS_TOKEN = "</s>"
-    BOS_TOKEN = "<s>"
-    UNK_TOKEN = "<unk>"
-    IGNORE_INDEX = -100
 
 TASKS = {'open_qa': 3742,
          'general_qa': 2191,
