@@ -94,7 +94,7 @@ class Client(object):
                     'attention_mask': batch['attention_mask'].to(self.device) 
                 }
                 logits = self.model(**batch)
-                loss = self.model.loss(logits, batch['labels'])
+                loss = logits.loss
                 eval_loss += loss.item()
                 num_evaluated += len(batch['input_ids'])
         return eval_loss / num_evaluated

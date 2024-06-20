@@ -96,7 +96,7 @@ def process_main(args_config_fname):
         server.update_global_model_by_seed_pool()
         eval_result = server.eval(cur_round=r, eval_avg_acc=eval_avg_acc)
         run.log({"global_loss":eval_result})
-        run.log({"avg_client_loss":clints_loss.mean()})
+        run.log({"avg_client_loss":np.array(clints_loss).mean()})
         eval_avg_acc.append(eval_result)
 
         if args.log:
