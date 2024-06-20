@@ -4,10 +4,11 @@ from tqdm import tqdm
 import torch
 
 class Client(object):
-    def __init__(self, idx, args, candidate_seeds, train_loader):
+    def __init__(self, idx, args, candidate_seeds, train_loader, eval_loader):
         self.idx = idx
         self.args = args
         self.train_loader = train_loader
+        self.eval_loader = eval_loader
         self.train_iterator = iter(self.train_loader)
         self.model = None
 
@@ -79,7 +80,7 @@ class Client(object):
             memory_record_dic[self.device.index]['max_memory_reserved'] = torch.cuda.max_memory_reserved(self.device)
 
 
-    def local_eval(self, eval_loader):
+    def local_eval(self):
         if self.model is None:
             raise ValueError('model is not initialized')
         self.model.to(self.device)
@@ -87,7 +88,7 @@ class Client(object):
         eval_loss = 0.0
         num_evaluated = 0
         with torch.no_grad():
-            for batch in eval_loader:
+            for batch in self.eval_loader:
                 batch = {
                     'input_ids': batch['input_ids'].to(self.device),
                     'labels': batch['labels'].to(self.device),

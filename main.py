@@ -61,7 +61,7 @@ def process_main(args_config_fname):
     
     # sample `K` candidate seeds
     candidate_seeds = np.random.randint(1, 100000000000, args.K)
-    client_list = get_client_list(args, candidate_seeds, list_train_loader)
+    client_list = get_client_list(args, candidate_seeds, list_train_loader, eval_loader)
 
     server = get_server(args, eval_loader, candidate_seeds, log_dir)
     
@@ -113,11 +113,13 @@ def process_main(args_config_fname):
     _, eval_loader_final, _ = get_loaders(args, only_eval=True)
     server.eval_loader = eval_loader_final
     eval_result = server.eval(cur_round=args.rounds, eval_avg_acc=eval_avg_acc)
+    
     if args.log:
         with open(os.path.join(log_dir, 'final_eval.json'), 'w') as writer:
             json.dump({
                 f'final_eval_{args.eval_metric}': eval_result
             }, writer)
+    
     print(f'final round {args.eval_metric}: {eval_result}')
     run.log({"Rouge":eval_result})
     run.finish()

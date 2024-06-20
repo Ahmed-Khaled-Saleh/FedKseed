@@ -148,7 +148,7 @@ class Server(object):
 
     def eval(self, cur_round, eval_avg_acc):
         if self.args.eval_metric == 'loss':
-            eval_metric = self.eval_loss(cur_round)
+            eval_metric = self.eval_loss(cur_round, strategy = 'global')
         else:
             eval_metric =  self.eval_generate(cur_round)
             
@@ -212,7 +212,7 @@ class Server(object):
         self.model = self.model.cpu()
         return np.array(all_loss).mean()
 
-    def eval_generate(self, cur_round, strategy = 'local'):
+    def eval_generate(self, cur_round, strategy = 'global'):
         self.model = self.model.to(self.device)
         self.model.eval()
         

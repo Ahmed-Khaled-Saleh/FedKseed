@@ -37,11 +37,11 @@ def get_client_indices_rounds(args):
         client_indices_rounds.append(np.random.choice(np.arange(args.num_clients), size=int(args.num_clients * args.m), replace=False))
     return client_indices_rounds
 
-def get_client_list(args, candidate_seeds, list_train_loader):
+def get_client_list(args, candidate_seeds, list_train_loader, list_eval_loader):
     Client = get_class('clients.client_' + args.name, 'Client')
     client_list = []
     for idx in range(args.num_clients):
-        client_list.append(Client(idx, args, candidate_seeds, list_train_loader[idx]))
+        client_list.append(Client(idx, args, candidate_seeds, list_train_loader[idx], list_eval_loader[idx]))
     return client_list
 
 
