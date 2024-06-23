@@ -96,8 +96,11 @@ class Client(object):
                 }
                 logits = self.model(**batch)
                 loss = logits.loss
+                if torch.isnan(loss):
+                    continue
                 eval_loss += loss.item()
                 num_evaluated += len(batch['input_ids'])
+        self.clear_model()
         return eval_loss / num_evaluated
     
     def clear_model(self):

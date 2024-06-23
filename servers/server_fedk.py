@@ -81,16 +81,19 @@ class Server(object):
         return tmp_model
 
     def aggregate_seed_pool(self, selected_client_list):
+        # step 7 in the FedK algorithm
         if self.args.equal_weight:
             weight_array = np.array([1.0 for _ in selected_client_list], dtype=np.float64)
             weight_array /= float(len(selected_client_list))
         else:
             weight_array = np.array([len(client.train_loader) for client in selected_client_list], dtype=np.float64)
             weight_array /= float(np.sum(weight_array))
+        
         for client_idx in range(len(selected_client_list)):
             local_seed_pool = selected_client_list[client_idx].local_seed_pool
             for seed, grad in local_seed_pool.items():
                 self.seed_pool[seed] += grad * weight_array[client_idx]
+
         for client in selected_client_list:
             client.clear_model()
 
@@ -178,7 +181,7 @@ class Server(object):
         all_loss = []
         loop = len(self.eval_loader)
         if strategy == 'global' and isinstance(self.eval_loader, list):
-            choice = np.random.choice(len(self.eval_loader))
+            choice = loop - 1#np.random.choice(len(self.eval_loader))
             self.eval_loader = [self.eval_loader[choice]]
             loop = 1
         progress_bar_eval = tqdm(range(loop))
@@ -224,7 +227,7 @@ class Server(object):
         loop = len(self.eval_loader)
         
         if strategy == 'global' and isinstance(self.eval_loader, list):
-            choice = np.random.choice(len(self.eval_loader))
+            choice = loop - 1#np.random.choice(len(self.eval_loader))
             self.eval_loader = [self.eval_loader[choice]]
             loop = 1
         progress_bar_eval = tqdm(range(loop))

@@ -65,7 +65,6 @@ def process_main(args_config_fname):
 
     server = get_server(args, eval_loader, candidate_seeds, log_dir)
     
-    
     eval_result = server.eval(cur_round=0, eval_avg_acc=eval_avg_acc)
     eval_avg_acc.append(eval_result)
 
@@ -81,19 +80,27 @@ def process_main(args_config_fname):
     for r in range(1, args.rounds + 1):
         run.watch(server.model)
         selected_client = [client_list[i] for i in client_indices_rounds[r-1]]
+        
         if args.bias_sampling:
             probabilities = server.calculate_probabilities()
         else:
             probabilities = None
+        
         for clinet_idx, client in enumerate(selected_client):
             # server.model is pulled after aggregation of the previous round from the server perspective
             # use a global pulling operation to deduplicate the pulling of all clients
+            
+            # step 5
             client.local_train_with_seed_pool(deepcopy(server.model), cur_round=r, memory_record_dic=memory_record_dic, probabilities=probabilities, gradient_history=server.gradient_history)
-            clints_loss.append(client.local_eval(eval_loader[clinet_idx]))
+            clints_loss.append(client.local_eval())
+        
+        # step 6, 7 
         server.aggregate_seed_pool(selected_client)
 
+        # eqation 4  
         # server gets the latest global model from the accumulated scalar gradients
         server.update_global_model_by_seed_pool()
+
         eval_result = server.eval(cur_round=r, eval_avg_acc=eval_avg_acc)
         run.log({"global_loss":eval_result})
         run.log({"avg_client_loss":np.array(clints_loss).mean()})
@@ -106,6 +113,7 @@ def process_main(args_config_fname):
                 json.dump({
                     'eval_avg_acc': eval_avg_acc
                 }, writer)
+
 
     # reset seed to have an eval_loader with the same data samples
     args.eval_metric = previous_metric
