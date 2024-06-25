@@ -30,6 +30,7 @@ class LLMDataset(Dataset):
 
         self.input_ids = data_dict["input_ids"]
         self.labels = data_dict["labels"]
+        self.tasks = [example[-1] for example in data]
 
 
     def _tokenize_fn(self, strings, tokenizer):
@@ -82,7 +83,8 @@ class LLMDataset(Dataset):
 
     def __getitem__(self, i):
         return dict(input_ids=self.input_ids[i],
-                    labels=self.labels[i])
+                    labels=self.labels[i],
+                    task=self.tasks[i])
 
 
 @dataclass
@@ -93,7 +95,7 @@ class LLMDataCollator(object):
 
     def __call__(self, instances):
         input_ids, labels = tuple([instance[key] for instance in instances]
-                                  for key in ("input_ids", "labels"))
+                                  for key in ("input_ids", "labels", "task"))
         input_ids = torch.nn.utils.rnn.pad_sequence(
             input_ids,
             batch_first=True,
@@ -110,7 +112,7 @@ class LLMDataCollator(object):
         
 
 def _get_task_splits():
-    with open(os.path.join('data', 'natural-instructions-2.8', 'splits', 'default', 'train_tasks.txt'), 'r') as reader:
+    with open(os.path.join('./data', 'natural-instructions-2.8', 'splits', 'default', 'train_tasks.txt'), 'r') as reader:
         train_set_names = [f'{content.strip()}.json' for content in reader.readlines()]
     with open(os.path.join('data', 'natural-instructions-2.8', 'splits', 'default', 'test_tasks.txt'), 'r') as reader:
         eval_set_names = [f'{content.strip()}.json' for content in reader.readlines()]
@@ -133,8 +135,9 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
     if not only_eval:
         print('load train sets')
         for file_name in train_set_names:
-            with open(os.path.join(os.path.expanduser('~'), '.datasets', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
+            with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
                 raw_data = json.load(reader)
+                task = raw_data['Categories'][0]
                 instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)
                 if len(instances) < 20:
                     continue
@@ -145,16 +148,17 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
                 data = []
                 for item in instances:
                     # only take the first output into consideration
-                    data.append((instruct, item['input'], item['output'][0]))
+                    data.append((instruct, item['input'], item['output'][0], task))
                 dataset = LLMDataset(data, tokenizer, use_prompts=args.use_prompts)
                 list_train_loader.append(DataLoader(dataset, shuffle=True, batch_size=args.batch_size, collate_fn=data_collator))
         args.num_clients = len(list_train_loader)
 
     list_eval_set = []
     for file_name in eval_set_names:
-        with open(os.path.join(os.path.expanduser('~'), '.datasets', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
+        with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
             raw_data = json.load(reader)
             instruct = raw_data['Definition'][0]
+            task = raw_data['Categories'][0]
             instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)
             if len(instances) > 20:
                 # sample 2% instances
@@ -162,7 +166,7 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
             data = []
             for item in instances:
                 # only take the first output into consideration
-                data.append((instruct, item['input'], item['output'][0]))
+                data.append((instruct, item['input'], item['output'][0], task))
             if args.eval_metric == 'loss':
                 list_eval_set.append(LLMDataset(data, tokenizer, use_prompts=args.use_prompts, generation=False))
             else:

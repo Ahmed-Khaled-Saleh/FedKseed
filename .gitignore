@@ -19,3 +19,5 @@ batch_*.py
 *.DS_Store
 exp/
 logs/
+/notebooks/*
+/data/natural-instructions-2.8/*

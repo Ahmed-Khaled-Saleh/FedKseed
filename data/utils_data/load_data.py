@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer
-from utils_data.default_tokens import DefaultToken
-from utils_data.partition_data import partition_idx_labeldir
+from data.utils_data.default_tokens import DefaultToken
+from data.utils_data.partition_data import partition_idx_labeldir
 from collections import Counter
 
 
@@ -26,7 +26,7 @@ def get_loaders(args, only_eval=False):
 
     # Generation task
     if args.dataset == 'dolly':
-        from utils_data.llm_dataset import LLMDataset, LLMDataCollator
+        from data.utils_data.llm_dataset import LLMDataset, LLMDataCollator
         if args.eval_metric == 'loss':
             raw_datasets = LLMDataset(args.dataset, tokenizer=tokenizer, generation=False)
         else:
@@ -66,7 +66,7 @@ def get_loaders(args, only_eval=False):
         )
         
     elif args.dataset in ['instruct']:
-        from utils_data.natural_instruction_loader import get_instruction_dataset
+        from data.utils_data.natural_instruction_loader import get_instruction_dataset
         list_train_loader, eval_loader = get_instruction_dataset(args, tokenizer, only_eval=only_eval)
     else:
         raise AttributeError(f'dataset {args.dataset} not implemented')

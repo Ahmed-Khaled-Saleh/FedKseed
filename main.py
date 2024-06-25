@@ -6,14 +6,17 @@ import argparse
 from dotenv import load_dotenv
 import yaml
 import numpy as np
+import pandas as pd
 import wandb
 
-from data.utils_data.mtl_dataset import get_loaders
+# from data.utils_data.mtl_dataset import get_loaders
+from data.utils_data.load_data import get_loaders
 from utils.helper_fuctions import (setup_seed,  
                                    load_config, 
                                    get_client_indices_rounds, 
                                    get_client_list,
-                                   get_server)
+                                   get_server,
+                                   dict_to_dataframe)
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -76,7 +79,8 @@ def process_main(args_config_fname):
                 'eval_avg_acc': eval_avg_acc
             }, writer)
 
-    clints_loss= []
+    clints_loss= {}
+    clinet_rouge = {}
     for r in range(1, args.rounds + 1):
         run.watch(server.model)
         selected_client = [client_list[i] for i in client_indices_rounds[r-1]]
@@ -92,8 +96,25 @@ def process_main(args_config_fname):
             
             # step 5
             client.local_train_with_seed_pool(deepcopy(server.model), cur_round=r, memory_record_dic=memory_record_dic, probabilities=probabilities, gradient_history=server.gradient_history)
-            clints_loss.append(client.local_eval())
+            
+            local_loss, task = client.local_eval_loss()
+            local_rouge = client.local_eval_rouge()
+
+            clints_loss[(clinet_idx, task)] += local_loss if (clinet_idx, task) in clints_loss else local_loss
+            clinet_rouge[(clinet_idx, task)] += local_rouge if (clinet_idx, task) in clinet_rouge else local_rouge
+
+            # run.log({f"{task}_loss":local_loss})
+            # run.log({f"{task}_rouge":local_rouge})
+
+        df_loss = dict_to_dataframe(clints_loss)
+        df_rouge = dict_to_dataframe(clinet_rouge)
         
+        loss_table = wandb.Table(dataframe=df_loss)
+        rouge_table = wandb.Table(dataframe=df_rouge)
+
+        run.log({"loss_table":loss_table})
+        run.log({"rouge_table":rouge_table})
+
         # step 6, 7 
         server.aggregate_seed_pool(selected_client)
 
@@ -103,7 +124,7 @@ def process_main(args_config_fname):
 
         eval_result = server.eval(cur_round=r, eval_avg_acc=eval_avg_acc)
         run.log({"global_loss":eval_result})
-        run.log({"avg_client_loss":np.array(clints_loss).mean()})
+        # run.log({"avg_client_loss":np.array(clints_loss).mean()})
         eval_avg_acc.append(eval_result)
 
         if args.log:

@@ -2,6 +2,7 @@ from optimizers.mezo_optimizer import *  # noqa: F403
 from optimizers.mezo_bias_optimizer import *  # noqa: F403
 from tqdm import tqdm
 import torch
+from utils.validation import *  # noqa: F403
 
 class Client(object):
     def __init__(self, idx, args, candidate_seeds, train_loader, eval_loader):
@@ -25,7 +26,7 @@ class Client(object):
         # initialize a seed pool
         self.local_seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
 
-        lr = self.args.lr
+        lr = float(self.args.lr)
         
         if self.args.batch_or_epoch == 'epoch':
             iter_steps = self.args.local_step * len(self.train_loader)
@@ -72,7 +73,7 @@ class Client(object):
                     progress_bar.set_description(f'client {self.idx} train at step {cur_step}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
         # save both CPU and GPU memory
         del framework
-        # self.model = None
+        self.model = None
         
         if memory_record_dic is not None:
             memory_record_dic[self.device.index] = {}
@@ -80,29 +81,61 @@ class Client(object):
             memory_record_dic[self.device.index]['max_memory_reserved'] = torch.cuda.max_memory_reserved(self.device)
 
 
-    def local_eval(self):
-        if self.model is None:
-            raise ValueError('model is not initialized')
-        self.model.to(self.device)
+    def loacl_eval_loss(self):
+        self.model = self.model.to(self.device)
         self.model.eval()
-        eval_loss = 0.0
-        num_evaluated = 0
+        
+        loss_total_eval = 0.0
+        num_eval = 0
+        
         with torch.no_grad():
             for batch in self.eval_loader:
                 batch = {
                     'input_ids': batch['input_ids'].to(self.device),
                     'labels': batch['labels'].to(self.device),
-                    'attention_mask': batch['attention_mask'].to(self.device) 
+                    'attention_mask': batch['attention_mask'].to(self.device),
+                    'task': batch['task']
                 }
-                logits = self.model(**batch)
-                loss = logits.loss
+                outputs = self.model(**batch)
+                loss = outputs.loss
                 if torch.isnan(loss):
                     continue
-                eval_loss += loss.item()
-                num_evaluated += len(batch['input_ids'])
-        self.clear_model()
-        return eval_loss / num_evaluated
+                loss_total_eval += loss
+                num_eval += len(batch['input_ids'])
+                if num_eval == 0:
+                    num_eval = 1e-10
+
+        print()
+        print()
+        self.model = self.model.cpu()
+        return (loss_total_eval / num_eval).item(), batch['task']
     
+
+    def local_eval_rouge(self):
+        self.model = self.model.to(self.device)
+        self.model.eval()
+        
+        acc_total_eval = 0.0
+        num_eval = 0
+        
+        with torch.no_grad():
+            for batch in self.eval_loader:
+                input_ids = batch['input_ids'].to(self.device)
+                label_ids = batch['labels'].to(self.device)
+                output_ids = self.model.generate(
+                    input_ids=input_ids,
+                    max_new_tokens=128,
+                    num_beams=1,
+                )
+                acc_total_eval += rouge_score(output_ids[0][len(input_ids[0]):], label_ids[0], self.tokenizer)  # noqa: F405
+                num_eval += len(batch['input_ids'])
+                if num_eval == 0:
+                    num_eval = 1e-10
+        print()
+        print()
+        self.model = self.model.cpu()
+        return acc_total_eval / num_eval
+
     def clear_model(self):
         # clear model to same memory
         self.model = None

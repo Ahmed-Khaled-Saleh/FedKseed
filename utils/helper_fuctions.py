@@ -1,8 +1,29 @@
 import random
 import importlib
+import csv
 import yaml
 import numpy as np
 import torch
+import pandas as pd
+
+def dict_to_dataframe(dictionary):
+    """
+    Convert a dictionary with tuple keys (client_index, task) to a Pandas DataFrame.
+    
+    Parameters:
+    - dictionary: dict, the dictionary to be converted
+    
+    Returns:
+    - df: pandas DataFrame, the resulting DataFrame
+    """
+    # Convert dictionary to a list of tuples (client_index, task, value)
+    data = [(key[0], key[1], value) for key, value in dictionary.items()]
+    
+    # Create a DataFrame
+    df = pd.DataFrame(data, columns=['Client Index', 'Task', 'Value'])
+    
+    return df
+
 
 def softmax(vec):
     vec = vec - np.max(vec)
