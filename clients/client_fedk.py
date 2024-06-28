@@ -12,6 +12,7 @@ class Client(object):
         self.eval_loader = eval_loader
         self.train_iterator = iter(self.train_loader)
         self.model = None
+        self.task = train_loader.dataset[0]['task']
 
         self.device = torch.device(f'cuda:{args.device}')
         self.candidate_seeds = candidate_seeds
@@ -73,7 +74,7 @@ class Client(object):
                     progress_bar.set_description(f'client {self.idx} train at step {cur_step}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
         # save both CPU and GPU memory
         del framework
-        self.model = None
+        # self.model = None
         
         if memory_record_dic is not None:
             memory_record_dic[self.device.index] = {}
@@ -81,11 +82,53 @@ class Client(object):
             memory_record_dic[self.device.index]['max_memory_reserved'] = torch.cuda.max_memory_reserved(self.device)
 
 
-    def loacl_eval_loss(self):
+
+    def train_error_and_loss(self):
+        self.model = self.model.to(self.device)
+        self.model.eval()
+        
+        loss_total_train = 0.0
+        acc_total_train = 0.0
+        num_eval = 0
+        
+        with torch.no_grad():
+            for batch in self.train_loader:
+                batch = {
+                    'input_ids': batch['input_ids'].to(self.device),
+                    'labels': batch['labels'].to(self.device),
+                    'attention_mask': batch['attention_mask'].to(self.device),
+                    'task': batch['task']
+                }
+                outputs = self.model(**batch)
+                loss = outputs.loss
+                output_ids = self.model.generate(
+                    input_ids=batch['input_ids'],
+                    max_new_tokens=128,
+                    num_beams=1,
+                )
+                acc_total_train += rouge_score(output_ids[0][len(batch['input_ids'][0]):], batch['labels'][0], self.tokenizer)  # noqa: F405
+
+                if torch.isnan(loss):
+                    continue
+                loss_total_train += loss
+                num_eval += len(batch['input_ids'])
+
+                if num_eval == 0:
+                    num_eval = 1e-10
+
+        print()
+        print()
+
+        self.model = self.model.cpu()
+        self.model = None
+        return (acc_total_train / num_eval), (loss_total_train / num_eval).item()
+    
+    def eval_error_and_loss(self):
         self.model = self.model.to(self.device)
         self.model.eval()
         
         loss_total_eval = 0.0
+        acc_total_eval = 0.0
         num_eval = 0
         
         with torch.no_grad():
@@ -96,45 +139,29 @@ class Client(object):
                     'attention_mask': batch['attention_mask'].to(self.device),
                     'task': batch['task']
                 }
+                
                 outputs = self.model(**batch)
                 loss = outputs.loss
                 if torch.isnan(loss):
                     continue
                 loss_total_eval += loss
-                num_eval += len(batch['input_ids'])
-                if num_eval == 0:
-                    num_eval = 1e-10
 
-        print()
-        print()
-        self.model = self.model.cpu()
-        return (loss_total_eval / num_eval).item(), batch['task']
-    
-
-    def local_eval_rouge(self):
-        self.model = self.model.to(self.device)
-        self.model.eval()
-        
-        acc_total_eval = 0.0
-        num_eval = 0
-        
-        with torch.no_grad():
-            for batch in self.eval_loader:
-                input_ids = batch['input_ids'].to(self.device)
-                label_ids = batch['labels'].to(self.device)
                 output_ids = self.model.generate(
-                    input_ids=input_ids,
+                    input_ids=batch['input_ids'],
                     max_new_tokens=128,
                     num_beams=1,
                 )
-                acc_total_eval += rouge_score(output_ids[0][len(input_ids[0]):], label_ids[0], self.tokenizer)  # noqa: F405
+                acc_total_eval += rouge_score(output_ids[0][len(batch['input_ids'][0]):], batch['labels'][0], self.tokenizer)  # noqa: F405
+
                 num_eval += len(batch['input_ids'])
                 if num_eval == 0:
                     num_eval = 1e-10
+
         print()
         print()
+
         self.model = self.model.cpu()
-        return acc_total_eval / num_eval
+        return (acc_total_eval / num_eval), (loss_total_eval / num_eval).item()
 
     def clear_model(self):
         # clear model to same memory

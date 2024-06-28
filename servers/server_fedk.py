@@ -150,9 +150,34 @@ class Server(object):
             self.probabilities /= sum_prob
         return self.probabilities
 
+
+
+    def eval_clients(self, clients_list ,cur_round, include_eval= False):
+        clients_metrics = []
+
+        for client in clients_list:
+            metrics = {}
+
+            task = client.task
+            metrics['task'] = task
+
+            train_acc, train_loss = client.train_error_and_loss()
+            metrics['train_loss'] = train_loss
+            metrics['train_acc'] = train_acc
+
+            if include_eval:
+                eval_acc, eval_loss = client.eval_error_and_loss()             
+                metrics['eval_loss'] = eval_loss
+                metrics['eval_acc'] = eval_acc
+
+            clients_metrics.append(metrics)
+        
+        return clients_metrics
+    
+    
     def eval(self, cur_round, eval_avg_acc):
         if self.args.eval_metric == 'loss':
-            eval_metric = self.eval_loss(cur_round, strategy = 'global')
+            eval_metric = self.eval_loss(cur_round)
         else:
             eval_metric =  self.eval_generate(cur_round)
             
@@ -180,15 +205,18 @@ class Server(object):
         loss_total_eval = 0.0
         num_eval = 0
         
+        loss_per_task = {}
         with torch.no_grad():
             for batch in self.eval_loader:
                 batch = {
                     'input_ids': batch['input_ids'].to(self.device),
                     'labels': batch['labels'].to(self.device),
-                    'attention_mask': batch['attention_mask'].to(self.device) 
+                    'attention_mask': batch['attention_mask'].to(self.device),
+                    'task': batch['task']
                 }
                 outputs = self.model(**batch)
                 loss = outputs.loss
+                loss_per_task[batch['task']] = loss if batch['task'] not in loss_per_task else loss_per_task[batch['task']] + loss
                 progress_bar_eval.update(1)
                 if torch.isnan(loss):
                     continue
@@ -200,7 +228,7 @@ class Server(object):
         print()
         print()
         self.model = self.model.cpu()
-        return (loss_total_eval / num_eval).item()
+        return (loss_total_eval / num_eval).item(), loss_per_task
 
     def eval_generate(self, cur_round):
         self.model = self.model.to(self.device)

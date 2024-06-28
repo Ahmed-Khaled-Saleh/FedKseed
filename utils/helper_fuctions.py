@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import pandas as pd
 
-def dict_to_dataframe(dictionary):
+def dict_to_df(dictionary):
     """
     Convert a dictionary with tuple keys (client_index, task) to a Pandas DataFrame.
     
@@ -23,6 +23,25 @@ def dict_to_dataframe(dictionary):
     df = pd.DataFrame(data, columns=['Client Index', 'Task', 'Value'])
     
     return df
+
+def lst_dict_to_df(lst_dict):
+    """
+    Convert a list of dictionaries with tuple keys (client_index, task) to a Pandas DataFrame.
+    
+    Parameters:
+    - lst_dict: list of dict, the list of dictionaries to be converted
+    
+    Returns:
+    - df: pandas DataFrame, the resulting DataFrame
+    """
+    # Convert list of dictionaries to a list of tuples (client_index, task, value)
+    data = [(key[0], key[1], value) for dictionary in lst_dict for key, value in dictionary.items()]
+    
+    # Create a DataFrame
+    df = pd.DataFrame(data, columns=['Client Index', 'Task', 'Value'])
+    
+    return df
+
 
 
 def softmax(vec):
@@ -62,7 +81,7 @@ def get_client_list(args, candidate_seeds, list_train_loader, list_eval_loader):
     Client = get_class('clients.client_' + args.name, 'Client')
     client_list = []
     for idx in range(args.num_clients):
-        client_list.append(Client(idx, args, candidate_seeds, list_train_loader[idx], list_eval_loader[idx]))
+        client_list.append(Client(idx, args, candidate_seeds, list_train_loader[idx], list_eval_loader))
     return client_list
 
 

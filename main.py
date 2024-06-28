@@ -16,7 +16,7 @@ from utils.helper_fuctions import (setup_seed,
                                    get_client_indices_rounds, 
                                    get_client_list,
                                    get_server,
-                                   dict_to_dataframe)
+                                   dict_to_df)
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -68,7 +68,7 @@ def process_main(args_config_fname):
 
     server = get_server(args, eval_loader, candidate_seeds, log_dir)
     
-    eval_result = server.eval(cur_round=0, eval_avg_acc=eval_avg_acc)
+    eval_result, _ = server.eval(cur_round=0, eval_avg_acc=eval_avg_acc)
     eval_avg_acc.append(eval_result)
 
     if args.log:
@@ -81,6 +81,7 @@ def process_main(args_config_fname):
 
     clints_loss= {}
     clinet_rouge = {}
+    lst_clients_metrics = []
     for r in range(1, args.rounds + 1):
         run.watch(server.model)
         selected_client = [client_list[i] for i in client_indices_rounds[r-1]]
@@ -97,23 +98,19 @@ def process_main(args_config_fname):
             # step 5
             client.local_train_with_seed_pool(deepcopy(server.model), cur_round=r, memory_record_dic=memory_record_dic, probabilities=probabilities, gradient_history=server.gradient_history)
             
-            local_loss, task = client.local_eval_loss()
-            local_rouge = client.local_eval_rouge()
+            # local_loss, task = client.local_eval_loss()
+            # local_rouge = client.local_eval_rouge()
 
-            clints_loss[(clinet_idx, task)] += local_loss if (clinet_idx, task) in clints_loss else local_loss
-            clinet_rouge[(clinet_idx, task)] += local_rouge if (clinet_idx, task) in clinet_rouge else local_rouge
+            # clints_loss[(clinet_idx, task)] += local_loss if (clinet_idx, task) in clints_loss else local_loss
+            # clinet_rouge[(clinet_idx, task)] += local_rouge if (clinet_idx, task) in clinet_rouge else local_rouge
 
             # run.log({f"{task}_loss":local_loss})
             # run.log({f"{task}_rouge":local_rouge})
 
-        df_loss = dict_to_dataframe(clints_loss)
-        df_rouge = dict_to_dataframe(clinet_rouge)
+        clients_metrics = server.eval_clients(client_list, cur_round=r)
+        lst_clients_metrics.append(pd.DataFrame(clients_metrics))
         
-        loss_table = wandb.Table(dataframe=df_loss)
-        rouge_table = wandb.Table(dataframe=df_rouge)
-
-        run.log({"loss_table":loss_table})
-        run.log({"rouge_table":rouge_table})
+        # run.log({"rouge_table":rouge_table})
 
         # step 6, 7 
         server.aggregate_seed_pool(selected_client)
@@ -122,8 +119,9 @@ def process_main(args_config_fname):
         # server gets the latest global model from the accumulated scalar gradients
         server.update_global_model_by_seed_pool()
 
-        eval_result = server.eval(cur_round=r, eval_avg_acc=eval_avg_acc)
+        eval_result, loss_per_task = server.eval(cur_round=r, eval_avg_acc=eval_avg_acc)
         run.log({"global_loss":eval_result})
+        run.log({"global_loss_per_task":[loss_per_task]})
         # run.log({"avg_client_loss":np.array(clints_loss).mean()})
         eval_avg_acc.append(eval_result)
 
@@ -134,7 +132,10 @@ def process_main(args_config_fname):
                 json.dump({
                     'eval_avg_acc': eval_avg_acc
                 }, writer)
-
+    
+    df = pd.concat(lst_clients_metrics, ignore_index=True)
+    metrics_table = wandb.Table(dataframe=df)
+    run.log({"Metrics":metrics_table})
 
     # reset seed to have an eval_loader with the same data samples
     args.eval_metric = previous_metric

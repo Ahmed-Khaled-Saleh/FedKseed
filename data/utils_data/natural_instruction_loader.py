@@ -94,7 +94,7 @@ class LLMDataCollator(object):
     tokenizer: transformers.PreTrainedTokenizer
 
     def __call__(self, instances):
-        input_ids, labels = tuple([instance[key] for instance in instances]
+        input_ids, labels, task = tuple([instance[key] for instance in instances]
                                   for key in ("input_ids", "labels", "task"))
         input_ids = torch.nn.utils.rnn.pad_sequence(
             input_ids,
@@ -108,6 +108,7 @@ class LLMDataCollator(object):
             input_ids=input_ids,
             labels=labels,
             attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
+            task=task
         )
         
 
