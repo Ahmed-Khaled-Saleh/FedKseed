@@ -208,15 +208,15 @@ class Server(object):
         loss_per_task = {}
         with torch.no_grad():
             for batch in self.eval_loader:
+                task = batch['task'][0]
                 batch = {
                     'input_ids': batch['input_ids'].to(self.device),
                     'labels': batch['labels'].to(self.device),
-                    'attention_mask': batch['attention_mask'].to(self.device),
-                    'task': batch['task']
+                    'attention_mask': batch['attention_mask'].to(self.device)
                 }
                 outputs = self.model(**batch)
                 loss = outputs.loss
-                loss_per_task[batch['task']] = loss if batch['task'] not in loss_per_task else loss_per_task[batch['task']] + loss
+                loss_per_task[task] = loss if task not in loss_per_task else loss_per_task[task] + loss
                 progress_bar_eval.update(1)
                 if torch.isnan(loss):
                     continue

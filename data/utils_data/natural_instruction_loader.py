@@ -6,6 +6,7 @@ import numpy as np
 from dataclasses import dataclass
 import transformers
 import torch
+import orjson
 
 
 IGNORE_INDEX = -100
@@ -136,8 +137,8 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
     if not only_eval:
         print('load train sets')
         for file_name in train_set_names:
-            with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
-                raw_data = json.load(reader)
+            with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name), 'rb') as reader:
+                raw_data = json.loads(reader)
                 task = raw_data['Categories'][0]
                 instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)
                 if len(instances) < 20:
@@ -156,8 +157,8 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
 
     list_eval_set = []
     for file_name in eval_set_names:
-        with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
-            raw_data = json.load(reader)
+        with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name), 'rb') as reader:
+            raw_data = json.loads(reader)
             instruct = raw_data['Definition'][0]
             task = raw_data['Categories'][0]
             instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)

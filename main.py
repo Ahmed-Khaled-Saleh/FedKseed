@@ -82,6 +82,7 @@ def process_main(args_config_fname):
     clints_loss= {}
     clinet_rouge = {}
     lst_clients_metrics = []
+    lst_global_metrics = []
     for r in range(1, args.rounds + 1):
         run.watch(server.model)
         selected_client = [client_list[i] for i in client_indices_rounds[r-1]]
@@ -107,7 +108,7 @@ def process_main(args_config_fname):
             # run.log({f"{task}_loss":local_loss})
             # run.log({f"{task}_rouge":local_rouge})
 
-        clients_metrics = server.eval_clients(client_list, cur_round=r)
+        clients_metrics = server.eval_clients(selected_client, cur_round=r)
         lst_clients_metrics.append(pd.DataFrame(clients_metrics))
         
         # run.log({"rouge_table":rouge_table})
@@ -121,8 +122,7 @@ def process_main(args_config_fname):
 
         eval_result, loss_per_task = server.eval(cur_round=r, eval_avg_acc=eval_avg_acc)
         run.log({"global_loss":eval_result})
-        run.log({"global_loss_per_task":[loss_per_task]})
-        # run.log({"avg_client_loss":np.array(clints_loss).mean()})
+        lst_global_metrics.append(loss_per_task)
         eval_avg_acc.append(eval_result)
 
         if args.log:
@@ -135,7 +135,11 @@ def process_main(args_config_fname):
     
     df = pd.concat(lst_clients_metrics, ignore_index=True)
     metrics_table = wandb.Table(dataframe=df)
-    run.log({"Metrics":metrics_table})
+    run.log({"Local Metrics":metrics_table})
+
+    df_global = pd.DataFrame(lst_global_metrics)
+    global_metrics_table = wandb.Table(dataframe=df_global)
+    run.log({"Global Metrics":global_metrics_table})
 
     # reset seed to have an eval_loader with the same data samples
     args.eval_metric = previous_metric

@@ -1,6 +1,7 @@
 from optimizers.mezo_optimizer import *  # noqa: F403
 from optimizers.mezo_bias_optimizer import *  # noqa: F403
 from tqdm import tqdm
+import os
 import torch
 from utils.validation import *  # noqa: F403
 
@@ -74,7 +75,14 @@ class Client(object):
                     progress_bar.set_description(f'client {self.idx} train at step {cur_step}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
         # save both CPU and GPU memory
         del framework
-        # self.model = None
+        # save model to disk
+        # check if folder saved_models exists
+        if not os.path.exists('/scratch/project_2009050/saved_models'):
+            os.makedirs('/scratch/project_2009050/saved_models')
+        
+        torch.save(self.model.state_dict(), f'/scratch/project_2009050/saved_models/client_{self.idx}.pt')
+
+        self.model = None
         
         if memory_record_dic is not None:
             memory_record_dic[self.device.index] = {}
@@ -84,7 +92,9 @@ class Client(object):
 
 
     def train_error_and_loss(self):
-        self.model = self.model.to(self.device)
+        if self.model is None:
+            self.model = torch.load(f'/scratch/project_2009050/saved_models/client_{self.idx}.pt')
+        self.model.to(self.device)
         self.model.eval()
         
         loss_total_train = 0.0
@@ -93,11 +103,11 @@ class Client(object):
         
         with torch.no_grad():
             for batch in self.train_loader:
+                task = batch['task']
                 batch = {
                     'input_ids': batch['input_ids'].to(self.device),
                     'labels': batch['labels'].to(self.device),
-                    'attention_mask': batch['attention_mask'].to(self.device),
-                    'task': batch['task']
+                    'attention_mask': batch['attention_mask'].to(self.device)
                 }
                 outputs = self.model(**batch)
                 loss = outputs.loss
@@ -119,11 +129,13 @@ class Client(object):
         print()
         print()
 
-        self.model = self.model.cpu()
+        # self.model = self.model.cpu()
         self.model = None
         return (acc_total_train / num_eval), (loss_total_train / num_eval).item()
     
     def eval_error_and_loss(self):
+        if self.model is None:
+            self.model = torch.load(f'/scratch/project_2009050/saved_models/client_{self.idx}.pt')
         self.model = self.model.to(self.device)
         self.model.eval()
         
@@ -133,11 +145,11 @@ class Client(object):
         
         with torch.no_grad():
             for batch in self.eval_loader:
+                task = batch['task'][0]
                 batch = {
                     'input_ids': batch['input_ids'].to(self.device),
                     'labels': batch['labels'].to(self.device),
                     'attention_mask': batch['attention_mask'].to(self.device),
-                    'task': batch['task']
                 }
                 
                 outputs = self.model(**batch)
