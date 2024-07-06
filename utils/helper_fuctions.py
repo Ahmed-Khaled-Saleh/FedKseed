@@ -5,6 +5,8 @@ import yaml
 import numpy as np
 import torch
 import pandas as pd
+from data.utils_data.default_tokens import DefaultToken
+
 
 def dict_to_df(dictionary):
     """
@@ -88,3 +90,17 @@ def get_client_list(args, candidate_seeds, list_train_loader, list_eval_loader):
 def get_server(args, eval_loader, candidate_seeds, log_dir):
     Server = get_class('servers.server_' + args.name, 'Server')
     return Server(args, eval_loader=eval_loader, candidate_seeds=candidate_seeds, log_dir=log_dir)
+
+
+def add_vocab(tokenizer):
+    special_tokens = dict()
+    if tokenizer.pad_token is None:
+        special_tokens["pad_token"] = DefaultToken.PAD_TOKEN.value
+    if tokenizer.eos_token is None:
+        special_tokens["eos_token"] = DefaultToken.EOS_TOKEN.value
+    if tokenizer.bos_token is None:
+        special_tokens["bos_token"] = DefaultToken.BOS_TOKEN.value
+    if tokenizer.unk_token is None:
+        special_tokens["unk_token"] = DefaultToken.UNK_TOKEN.value
+    tokenizer.add_special_tokens(special_tokens)
+    return tokenizer

@@ -79,10 +79,26 @@ def process_main(args_config_fname):
                 'eval_avg_acc': eval_avg_acc
             }, writer)
 
-    clints_loss= {}
-    clinet_rouge = {}
+
     lst_clients_metrics = []
     lst_global_metrics = []
+
+    for client in client_list:
+        metrics = {}
+        local_loss = client.full_local_train(server.model_w0)
+        task = client.task if isinstance(client.task, str) else client.task[0]
+
+        metrics["task"] = task
+        metrics["train_loss"] = local_loss
+        lst_clients_metrics.append(metrics)
+        client.model = None
+    
+    clients_local_metrics = wandb.Table(dataframe=pd.DataFrame(lst_clients_metrics))
+    run.log({"Local Metrics":clients_local_metrics})
+        
+
+
+    lst_global_metrics_dfs = []
     for r in range(1, args.rounds + 1):
         run.watch(server.model)
         selected_client = [client_list[i] for i in client_indices_rounds[r-1]]
@@ -92,27 +108,23 @@ def process_main(args_config_fname):
         else:
             probabilities = None
         
-        for clinet_idx, client in enumerate(selected_client):
-            # server.model is pulled after aggregation of the previous round from the server perspective
-            # use a global pulling operation to deduplicate the pulling of all clients
+        for client in selected_client:
+            metrics = {}
             
-            # step 5
-            client.local_train_with_seed_pool(deepcopy(server.model), cur_round=r, memory_record_dic=memory_record_dic, probabilities=probabilities, gradient_history=server.gradient_history)
+            train_loss = client.local_train_with_seed_pool(deepcopy(server.model), cur_round=r, memory_record_dic=memory_record_dic, probabilities=probabilities, gradient_history=server.gradient_history)
             
-            # local_loss, task = client.local_eval_loss()
-            # local_rouge = client.local_eval_rouge()
+            task = client.task if isinstance(client.task, str) else client.task[0]
+            metrics['train_loss'], metrics['task']  = train_loss, task
+            lst_global_metrics.append(metrics)
+            
+            client.model = None
 
-            # clints_loss[(clinet_idx, task)] += local_loss if (clinet_idx, task) in clints_loss else local_loss
-            # clinet_rouge[(clinet_idx, task)] += local_rouge if (clinet_idx, task) in clinet_rouge else local_rouge
-
-            # run.log({f"{task}_loss":local_loss})
-            # run.log({f"{task}_rouge":local_rouge})
-
-        clients_metrics = server.eval_clients(selected_client, cur_round=r)
-        lst_clients_metrics.append(pd.DataFrame(clients_metrics))
+        round_global_metrics = wandb.Table(dataframe=pd.DataFrame(lst_global_metrics))
+        run.log({f"round {r} Global Metrics":round_global_metrics})
         
-        # run.log({"rouge_table":rouge_table})
+        lst_global_metrics_dfs.append(pd.DataFrame(lst_global_metrics))
 
+        
         # step 6, 7 
         server.aggregate_seed_pool(selected_client)
 
@@ -120,10 +132,10 @@ def process_main(args_config_fname):
         # server gets the latest global model from the accumulated scalar gradients
         server.update_global_model_by_seed_pool()
 
-        eval_result, loss_per_task = server.eval(cur_round=r, eval_avg_acc=eval_avg_acc)
-        run.log({"global_loss":eval_result})
-        lst_global_metrics.append(loss_per_task)
-        eval_avg_acc.append(eval_result)
+        # eval_result, loss_per_task = server.eval(cur_round=r, eval_avg_acc=eval_avg_acc)
+        # run.log({"global_loss":eval_result})
+        # lst_global_metrics.append(loss_per_task)
+        # eval_avg_acc.append(eval_result)
 
         if args.log:
             with open(os.path.join(log_dir, 'memory.json'), 'w') as writer:
@@ -133,13 +145,15 @@ def process_main(args_config_fname):
                     'eval_avg_acc': eval_avg_acc
                 }, writer)
     
-    df = pd.concat(lst_clients_metrics, ignore_index=True)
-    metrics_table = wandb.Table(dataframe=df)
-    run.log({"Local Metrics":metrics_table})
+    df = pd.concat(lst_global_metrics_dfs, ignore_index=True)
+    df.to_csv(os.path.join(log_dir, 'global_metrics.csv'), index=False)
+    global_metrics_table = wandb.Table(dataframe=df)
+    run.log({"All Global Metrics":global_metrics_table})
 
-    df_global = pd.DataFrame(lst_global_metrics)
-    global_metrics_table = wandb.Table(dataframe=df_global)
-    run.log({"Global Metrics":global_metrics_table})
+    # df_global = pd.DataFrame(lst_global_metrics)
+    # df_global.to_csv(os.path.join(log_dir, 'global_metrics.csv'), index=False)
+    # global_metrics_table = wandb.Table(dataframe=df_global)
+    # run.log({"Global Metrics":global_metrics_table})
 
     # reset seed to have an eval_loader with the same data samples
     args.eval_metric = previous_metric
@@ -155,7 +169,7 @@ def process_main(args_config_fname):
             }, writer)
     
     print(f'final round {args.eval_metric}: {eval_result}')
-    run.log({"Rouge":eval_result})
+    run.log({"Final Global Rouge":eval_result})
     run.finish()
 
 
@@ -167,10 +181,16 @@ if __name__ == '__main__':
     wandb.login(key=key, verify=False)
 
     parser = argparse.ArgumentParser()
+    
     parser.add_argument(
         '--fname', type=str,
         help='name of config file to load',
         default='configs.yaml')
+    
+    parser.add_argument('--gpus', default=1, type=int,
+                        help='number of GPUs per node')
+    parser.add_argument('--nodes', default=1, type=int,
+                        help='number of nodes')
     
     args_config_fname = parser.parse_args()
     process_main(args_config_fname)

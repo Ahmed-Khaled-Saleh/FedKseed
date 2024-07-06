@@ -6,7 +6,6 @@ import numpy as np
 from dataclasses import dataclass
 import transformers
 import torch
-import orjson
 
 
 IGNORE_INDEX = -100
@@ -136,9 +135,9 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
     # if only_eval, the following lines won't be executed to save time.
     if not only_eval:
         print('load train sets')
-        for file_name in train_set_names:
-            with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name), 'rb') as reader:
-                raw_data = json.loads(reader)
+        for idx, file_name in enumerate(train_set_names):
+            with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
+                raw_data = json.load(reader)
                 task = raw_data['Categories'][0]
                 instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)
                 if len(instances) < 20:
@@ -153,12 +152,15 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
                     data.append((instruct, item['input'], item['output'][0], task))
                 dataset = LLMDataset(data, tokenizer, use_prompts=args.use_prompts)
                 list_train_loader.append(DataLoader(dataset, shuffle=True, batch_size=args.batch_size, collate_fn=data_collator))
+            
+            if idx == args.num_clients - 1:
+                break
         args.num_clients = len(list_train_loader)
 
     list_eval_set = []
     for file_name in eval_set_names:
-        with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name), 'rb') as reader:
-            raw_data = json.loads(reader)
+        with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
+            raw_data = json.load(reader)
             instruct = raw_data['Definition'][0]
             task = raw_data['Categories'][0]
             instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)

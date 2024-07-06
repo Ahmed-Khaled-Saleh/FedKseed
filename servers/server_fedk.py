@@ -102,7 +102,7 @@ class Server(object):
         self.model = deepcopy(self.model_w0)
         self.model.to(self.device)
         
-        framework = MeZOFramework(self.model, args=self.args, lr=self.args.lr, candidate_seeds=self.candidate_seeds)  # noqa: F405
+        framework = MeZOFramework(self.model, args=self.args, lr=float(self.args.lr), candidate_seeds=self.candidate_seeds)  # noqa: F405
         progress_bar = tqdm(range(len(self.seed_pool))) 
 
         # pull the latest model via accumulated {seed, grad} pairs on the server
@@ -161,7 +161,7 @@ class Server(object):
             task = client.task
             metrics['task'] = task
 
-            train_acc, train_loss = client.train_error_and_loss()
+            train_acc, train_loss = client.train_error_and_loss(deepcopy(self.model))
             metrics['train_loss'] = train_loss
             metrics['train_acc'] = train_acc
 

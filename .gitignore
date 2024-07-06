@@ -21,3 +21,5 @@ exp/
 logs/
 /notebooks/*
 /data/natural-instructions-2.8/*
+*.pdf
+*.csv
