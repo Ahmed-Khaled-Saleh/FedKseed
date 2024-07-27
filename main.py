@@ -159,7 +159,7 @@ def process_main(args_config_fname):
 
     lst_global_metrics_dfs = federated_training(client_list, client_indices_rounds, server, args, run, memory_record_dic)
 
-    
+    lst_global_metrics_dfs.to_csv(os.path.join(log_dir, 'global_metrics.csv'))
     
     
     
