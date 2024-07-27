@@ -7,13 +7,11 @@ class MeZOOptimizer(Optimizer):
                  params, 
                  lr= 0.000003,
                  zo_eps=0.0005,
-                 local_seed_pool= None,
                  candidate_seeds= None,
                  weight_decay=0.0):
         
         defaults = dict(lr=lr, 
                         zo_eps=zo_eps,
-                        local_seed_pool= local_seed_pool,  
                         candidate_seeds= candidate_seeds,
                         weight_decay=weight_decay)
         
@@ -28,14 +26,7 @@ class MeZOOptimizer(Optimizer):
             raise ValueError("Closure is required for MeZOOptimizer")
 
         self.zo_random_seed = np.random.choice(self.candidate_seeds, 1)[0]
-        # Generate perturbation vectors
-        # z_dict = {}
-        # for group in self.param_groups:
-        #     for p in group['params']:
-        #         torch.manual_seed(self.zo_random_seed)
-        #         z_dict[p] = torch.normal(mean=0, std=1, size=p.shape, device=p.device, dtype=p.dtype)
-
-        # Store original parameters
+        
         orig_params = {}
         for group in self.param_groups:
             for p in group['params']:
@@ -61,7 +52,7 @@ class MeZOOptimizer(Optimizer):
             return loss_pos
 
         self._sgd_step()
-        return loss_pos
+        return loss_pos, self.zo_random_seed, self.projected_grad
     
     def _sgd_step(self, seed= None, grad= None):
 
@@ -74,9 +65,8 @@ class MeZOOptimizer(Optimizer):
             lr = group['lr']
             zo_eps = group['zo_eps']
             weight_decay = group['weight_decay']
-            local_seed_pool = group['local_seed_pool']
             
-            self._add_seed_pole(local_seed_pool, zo_eps)
+            # self._add_seed_pole(local_seed_pool, zo_eps)
 
             for p in group['params']:
                 if p.grad is None:
@@ -104,15 +94,7 @@ class MeZOOptimizer(Optimizer):
         for group in self.param_groups:
             for p in group['params']:
                 p.copy_(orig_params[p])
-    
-    def zero_grad(self):
-        r"""Clears the gradients of all optimized parameters."""
-        for group in self.param_groups:
-            for p in group['params']:
-                if p.grad is not None:
-                    p.grad.detach_()
-                    p.grad.zero_()
 
-    def _add_seed_pole(self, local_seed_pool):
-        if local_seed_pool is not None:
-            local_seed_pool[self.zo_random_seed] += self.projected_grad
+    # def _add_seed_pole(self, local_seed_pool):
+    #     if local_seed_pool is not None:
+    #         local_seed_pool[self.zo_random_seed] += self.projected_grad

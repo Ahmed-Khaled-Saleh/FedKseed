@@ -44,25 +44,6 @@ class Server(object):
             self.gradient_history = None
             self.probabilities = None
     
-    # def create_model_by_seedpool(self, cur_round):
-    #     tmp_model = deepcopy(self.model_w0)
-    #     tmp_model
-
-    #     lr = float(self.args.lr)
-    #     lr = lr * math.pow(self.args.lr_decay, cur_round - 1)
-    #     if self.args.lr_decay != 1.0:
-    #         raise ValueError('currently seed pool only supports constant learning rate')
-    #     # replace local model with initial weights
-    #     framework = MeZOFramework(tmp_model, args=self.args, lr=lr, candidate_seeds=self.candidate_seeds)  # noqa: F405
-    #     progress_bar = tqdm(range(len(self.seed_pool))) 
-    #     # pull the latest model via accumulated {seed, grad} pairs on the server
-    #     for seed, grad in self.seed_pool.items():
-    #         if grad != 0:
-    #             framework.zo_update(seed=seed, grad=grad)
-    #         progress_bar.update(1)
-    #         progress_bar.set_description(f'pull global model at round{cur_round}')
-    #     tmp_model = tmp_model.cpu()
-    #     return tmp_model
 
     def aggregate_seed_pool(self, selected_client_list):
         # step 7 in the FedK algorithm

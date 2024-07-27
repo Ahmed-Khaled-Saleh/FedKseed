@@ -40,7 +40,14 @@ class Trainer:
         self.train_loader.sampler.set_epoch(epoch)
         total_loss = 0
         for batch in self.train_loader:
-            batch = {k: v.to(self.local_rank) for k, v in batch.items()}
+            
+            batch = {
+                    'input_ids': batch['input_ids'].to(self.local_rank),
+                    'labels': batch['labels'].to(self.local_rank),
+                    'attention_mask': batch['attention_mask'].to(self.local_rank) 
+                }
+            
+            # batch = {k: v.to(self.local_rank) for k, v in batch.items()}
             loss = self._run_batch(batch)
             total_loss += loss
         return total_loss / len(self.train_loader)

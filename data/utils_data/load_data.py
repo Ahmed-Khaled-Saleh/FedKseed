@@ -7,7 +7,7 @@ from data.utils_data.partition_data import partition_idx_labeldir
 from collections import Counter
 
 
-def get_loaders(args, only_eval=False):
+def get_datasets(args, only_eval=False):
     """
     Return: list of train_loaders, eval_loader
     """
@@ -66,8 +66,9 @@ def get_loaders(args, only_eval=False):
         )
         
     elif args.dataset in ['instruct']:
-        from data.utils_data.natural_instruction_loader import get_instruction_dataset
-        list_train_loader, eval_loader = get_instruction_dataset(args, tokenizer, only_eval=only_eval)
+        from data.utils_data.ni_loader import get_instruction_dataset
+        list_train_ds, lst_eval_ds, tokenizer = get_instruction_dataset(args, tokenizer, only_eval=only_eval)
+        return list_train_ds, lst_eval_ds, tokenizer
     else:
         raise AttributeError(f'dataset {args.dataset} not implemented')
     return list_train_loader, eval_loader, tokenizer

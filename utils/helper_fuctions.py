@@ -1,10 +1,10 @@
 import random
 import importlib
-import csv
 import yaml
 import numpy as np
 import torch
 import pandas as pd
+from copy import deepcopy
 from data.utils_data.default_tokens import DefaultToken
 
 
@@ -79,16 +79,18 @@ def get_client_indices_rounds(args):
         client_indices_rounds.append(np.random.choice(np.arange(args.num_clients), size=int(args.num_clients * args.m), replace=False))
     return client_indices_rounds
 
-def get_client_list(args, candidate_seeds, list_train_loader, list_eval_loader):
-    Client = get_class('clients.client_' + args.name, 'Client')
+def get_client_list(list_train_ds, list_eval_ds, model, criterion, optimizer, args, candidate_seeds):
+    Client = get_class('clients.client_' + args.name, f'Client_{args.name}')
     client_list = []
+
     for idx in range(args.num_clients):
-        client_list.append(Client(idx, args, candidate_seeds, list_train_loader[idx], list_eval_loader))
+        client_list.append(Client(list_train_ds[idx], list_eval_ds[idx], deepcopy(model), criterion, deepcopy(optimizer), idx, args, candidate_seeds))
+        # client_list.append(Client(idx, args, candidate_seeds, list_train_loader[idx], list_eval_loader))
     return client_list
 
 
 def get_server(args, eval_loader, candidate_seeds, log_dir):
-    Server = get_class('servers.server_' + args.name, 'Server')
+    Server = get_class('servers.server_' + args.name, f'Server_{args.name}')
     return Server(args, eval_loader=eval_loader, candidate_seeds=candidate_seeds, log_dir=log_dir)
 
 

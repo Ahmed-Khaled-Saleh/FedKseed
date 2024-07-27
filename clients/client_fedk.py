@@ -5,211 +5,53 @@ import os
 import torch
 from copy import deepcopy
 from utils.validation import *  # noqa: F403
+from optimizers.mezo_torch import MeZOOptimizer
+from trainers.trainer import Trainer
+from clients.base_client import BaseClient
 
-class Client(object):
-    def __init__(self, idx, args, candidate_seeds, train_loader, eval_loader):
+
+class Client_fedk(BaseClient):
+    def __init__(self,
+                 train_ds,
+                 eval_ds,
+                 model,
+                 criterion,
+                 optimizer,
+                 idx,
+                 args,
+                 candidate_seeds):
+
+        '''
+        A client is defined as an object that contains :
+
+        1- **Essentials**:
+            dataseet (train, eval), model, loss function (criterion), and an optimizer.
+            
+        2- **Extra information**:
+            Task-dependent and algrithm-specifics
+        '''
+        
+        super().__init__(train_ds, eval_ds, model, criterion, optimizer)
+
         self.idx = idx
         self.args = args
-        self.train_loader = train_loader
-        self.eval_loader = eval_loader
-        self.train_iterator = iter(self.train_loader)
-        self.model = None
-        self.task = train_loader.dataset[0]['task']
-
-        self.device = torch.device(f'cuda:{args.device}')
+        self.device = torch.device(f'{args.gpu}:{args.device}')
         self.candidate_seeds = candidate_seeds
-
-# trainer = L.Trainer(devices=args.gpus,
-#                      num_nodes=args.nodes,
-#                      accelerator='gpu',
-#                      strategy='ddp',
-#                      ...)
-
-    def full_local_train(self, initial_model, memory_record_dic=None):
-        self.model = initial_model
-        self.model.to(self.device)
-        epochs = self.args.rounds
-        if memory_record_dic is not None:
-            torch.cuda.empty_cache()
-        
-        # initialize a seed pool
         self.local_seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
 
-        lr = float(self.args.lr)
+        self.task = self.dataset[0]['task']
+        self.task = self.task if isinstance(self.task, str) else self.task[0]
+        self.train_stat = {}
+        self.test_stats = {}
         
-        if self.args.batch_or_epoch == 'epoch':
-            iter_steps = self.args.local_step * len(self.train_loader)
-        else:
-            iter_steps = self.args.local_step
-            
-        if self.args.bias_sampling:
-            assert probabilities is not None
-            framework = MeZOBiasOptimizer(self.model, args=self.args, lr=lr, candidate_seeds=self.candidate_seeds, probabilities=probabilities, gradient_history=gradient_history)  # noqa: F405
-        else:
-            framework = MeZOFramework(self.model, args=self.args, lr=lr, candidate_seeds=self.candidate_seeds)  # noqa: F405
-        self.model.eval()
-        
-        for epoch in range(epochs):
-            total_loss_epocchs  = 0.0
-            with torch.no_grad():
-                if self.args.batch_or_epoch == 'batch':
-                        loss_total_train = 0.0
-                        num_trained = 0
-                        progress_bar = tqdm(range(iter_steps))
-                        
-                for cur_step in range(iter_steps):
-                    # init epoch progress bar
-                    if self.args.batch_or_epoch == 'epoch':
-                        if cur_step % len(self.train_loader) == 0:
-                            loss_total_train = 0.0
-                            num_trained = 0
-                            progress_bar = tqdm(range(len(self.train_loader)))
-                    try:
-                        batch = next(self.train_iterator)
-                    except StopIteration:
-                        self.train_iterator = iter(self.train_loader)
-                        batch = next(self.train_iterator)
-                    batch = {
-                        'input_ids': batch['input_ids'].to(self.device),
-                        'labels': batch['labels'].to(self.device),
-                        'attention_mask': batch['attention_mask'].to(self.device) 
-                    }
-                    logits, loss = framework.zo_step(batch, local_seed_pool=self.local_seed_pool)
-                    progress_bar.update(1)
-                    if (not torch.isnan(loss)) and (self.args.grad_clip <= 0 or loss != 0.0):
-                        loss_total_train += loss
-                        num_trained += len(batch['input_ids'])
-                    if self.args.batch_or_epoch == 'epoch':
-                        progress_bar.set_description(f'client {self.idx} train at epoch {int(cur_step / len(self.train_loader)) + 1}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
-                    else:
-                        progress_bar.set_description(f'client {self.idx} train at step {cur_step}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
-            if num_trained == 0:
-                num_trained = 1e-10
-            epoch_loss = loss_total_train / num_trained
-            total_loss_epocchs += epoch_loss
-        
-        # save both CPU and GPU memory
-        del framework
-
-        client_loss = total_loss_epocchs / epochs
-        
-        if memory_record_dic is not None:
-            memory_record_dic[self.device.index] = {}
-            memory_record_dic[self.device.index]['max_memory_allocated'] = torch.cuda.max_memory_allocated(self.device)
-            memory_record_dic[self.device.index]['max_memory_reserved'] = torch.cuda.max_memory_reserved(self.device)
-
-
-        return client_loss
-
-
-
-    def local_train_with_seed_pool(self, pulled_model, cur_round, memory_record_dic=None, probabilities=None, gradient_history=None):
-        self.model = pulled_model
-        self.model.to(self.device)
-        
-        if memory_record_dic is not None:
-            torch.cuda.empty_cache()
-        
-        # initialize a seed pool
-        self.local_seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
-
-        lr = float(self.args.lr)
-        
-        if self.args.batch_or_epoch == 'epoch':
-            iter_steps = self.args.local_step * len(self.train_loader)
-        else:
-            iter_steps = self.args.local_step
-            
-        if self.args.bias_sampling:
-            assert probabilities is not None
-            framework = MeZOBiasOptimizer(self.model, args=self.args, lr=lr, candidate_seeds=self.candidate_seeds, probabilities=probabilities, gradient_history=gradient_history)  # noqa: F405
-        else:
-            framework = MeZOFramework(self.model, args=self.args, lr=lr, candidate_seeds=self.candidate_seeds)  # noqa: F405
-        self.model.eval()
-        with torch.no_grad():
-            if self.args.batch_or_epoch == 'batch':
-                    loss_total_train = 0.0
-                    num_trained = 0
-                    progress_bar = tqdm(range(iter_steps))
-                    
-            for cur_step in range(iter_steps):
-                # init epoch progress bar
-                if self.args.batch_or_epoch == 'epoch':
-                    if cur_step % len(self.train_loader) == 0:
-                        loss_total_train = 0.0
-                        num_trained = 0
-                        progress_bar = tqdm(range(len(self.train_loader)))
-                try:
-                    batch = next(self.train_iterator)
-                except StopIteration:
-                    self.train_iterator = iter(self.train_loader)
-                    batch = next(self.train_iterator)
-                batch = {
-                    'input_ids': batch['input_ids'].to(self.device),
-                    'labels': batch['labels'].to(self.device),
-                    'attention_mask': batch['attention_mask'].to(self.device) 
-                }
-                logits, loss = framework.zo_step(batch, local_seed_pool=self.local_seed_pool)
-                progress_bar.update(1)
-                if (not torch.isnan(loss)) and (self.args.grad_clip <= 0 or loss != 0.0):
-                    loss_total_train += loss
-                    num_trained += len(batch['input_ids'])
-                if self.args.batch_or_epoch == 'epoch':
-                    progress_bar.set_description(f'client {self.idx} train at epoch {int(cur_step / len(self.train_loader)) + 1}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
-                else:
-                    progress_bar.set_description(f'client {self.idx} train at step {cur_step}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
-        # save both CPU and GPU memory
-        del framework
-        
-        if num_trained == 0:
-            num_trained = 1e-10
-        client_loss = loss_total_train / num_trained
-        
-        if memory_record_dic is not None:
-            memory_record_dic[self.device.index] = {}
-            memory_record_dic[self.device.index]['max_memory_allocated'] = torch.cuda.max_memory_allocated(self.device)
-            memory_record_dic[self.device.index]['max_memory_reserved'] = torch.cuda.max_memory_reserved(self.device)
-        return client_loss
-
-    def eval_error_and_loss(self, tokenizer):
-
-        self.model.to(self.device)
-        self.model.eval()
-        
-        loss_total_train = 0.0
-        acc_total_train = 0.0
-        num_eval = 0
-        
-        with torch.no_grad():
-            for batch in self.eval_loader:
-                batch = {
-                    'input_ids': batch['input_ids'].to(self.device),
-                    'labels': batch['labels'].to(self.device),
-                    'attention_mask': batch['attention_mask'].to(self.device)
-                }
-                outputs = self.model(**batch)
-                loss = outputs.loss
-
-                if torch.isnan(loss):
-                    continue
-                loss_total_train += loss
-                num_eval += len(batch['input_ids'])
-
-                if num_eval == 0:
-                    num_eval = 1e-10
-
-        print()
-        print()
-
-        # self.model = self.model.cpu()
-        # self.model = None
-        return (acc_total_train / num_eval), (loss_total_train / num_eval).item()
-    
    
     def clear_model(self):
-        # clear model to same memory
         self.model = None
 
+    def _add_seed_pole(self, zo_random_seed, projected_grad):
+        if self.local_seed_pool is not None:
+            self.local_seed_pool[zo_random_seed] += projected_grad
+    
     def migrate(self, device):
         """
         migrate a client to a new device
