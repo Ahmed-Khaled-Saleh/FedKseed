@@ -44,49 +44,14 @@ def local_training(client_list,
 
     return lst_clients_metrics
 
-def federated_training(client_list,  
+def federated_training(server,
+                       client_list,
                        client_indices_rounds,
-                       server,
-                       args, 
-                       run, 
+                       args,
+                       run,
                        memory_record_dic):
     
-    lst_global_metrics_dfs = []
-    for t in range(1, args.rounds + 1):
-        selected_client = [client_list[i] for i in client_indices_rounds[t-1]]
-        
-        lst_global_metrics = []
-        
-        for client in selected_client:
-            trainer = Trainer(client)
-        
-            local_iters = client.args.local_step
-            epochs = 1
-            
-            client.model = deepcopy(server.model)
-            
-            metrics = {}
-            train_loss, val_loss, train_acc, val_acc = trainer.train(fed= True,
-                                                 epochs= epochs,
-                                                 local_iters= local_iters,
-                                                 memory_record_dic= memory_record_dic,
-                                                 callbacks=[empty_cach, log_memory])
-            
-            train_loss = np.array(train_loss).mean()
-            task = client.task if isinstance(client.task, str) else client.task[0]
-
-            metrics['train_loss'], metrics['val_loss'], metrics['task'], metrics['train_acc'], metrics['val_acc'] =\
-                  train_loss, val_loss, task, train_acc, val_acc
-            
-            lst_global_metrics.append(metrics)
-        
-        round_global_metrics = wandb.Table(dataframe=pd.DataFrame(lst_global_metrics))
-        run.log({f"round {t} (GM) Metrics": round_global_metrics})
-        
-        lst_global_metrics_dfs.append(pd.DataFrame(lst_global_metrics))
-
-        server.aggregate_seed_pool(selected_client)
-        server.update_global_model_by_seed_pool()
+    lst_global_metrics_dfs = server.train(client_list, client_indices_rounds, args, run, memory_record_dic)
 
     return lst_global_metrics_dfs
 

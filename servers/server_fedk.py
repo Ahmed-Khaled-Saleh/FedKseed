@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import os
 import math
 from copy import deepcopy
@@ -7,18 +8,17 @@ from tqdm import tqdm
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig, get_peft_model
-
+import wandb
 from data.utils_data.default_tokens import DefaultToken
 from optimizers.mezo_optimizer import *  # noqa: F403
 from utils.validation import *  # noqa: F403
 from utils.helper_fuctions import *  # noqa: F403
-
-
+from trainers.trainer import Trainer
+from trainers.callbacks import empty_cach, log_memory
 
 class Server(object):
     def __init__(self, args, candidate_seeds, log_dir):
         self.args = args
-        # self.eval_loader = eval_loader
         self.candidate_seeds = candidate_seeds
         self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
         self.log_dir = log_dir
@@ -46,8 +46,6 @@ class Server(object):
         #     bias="none")
         # self.model = self.base_model#get_peft_model(deepcopy(self.base_model), config)
 
-
-
         self.model_w0 = deepcopy(self.model)
         self.seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
         
@@ -61,6 +59,53 @@ class Server(object):
             self.gradient_history = None
             self.probabilities = None
     
+
+    def train(self,
+              client_list,
+              client_indices_rounds,
+              args,
+              run,
+              memory_record_dic):
+
+        lst_global_metrics_dfs = []
+        for t in range(1, args.rounds + 1):
+            selected_client = [client_list[i] for i in client_indices_rounds[t-1]]
+            
+            lst_global_metrics = []
+            
+            for client in selected_client:
+                trainer = Trainer(client)
+            
+                local_iters = client.args.local_step
+                epochs = 1
+                
+                client.model = deepcopy(self.model)
+                
+                metrics = {}
+                train_loss, val_loss, train_acc, val_acc = trainer.train(fed= True,
+                                                                         epochs= epochs,
+                                                                         local_iters= local_iters,
+                                                                         memory_record_dic= memory_record_dic,
+                                                                         callbacks=[empty_cach, log_memory])
+                
+                train_loss = np.array(train_loss).mean()
+                task = client.task if isinstance(client.task, str) else client.task[0]
+
+                metrics['train_loss'], metrics['val_loss'], metrics['task'], metrics['train_acc'], metrics['val_acc'] = \
+                    train_loss, val_loss, task, train_acc, val_acc
+                
+                lst_global_metrics.append(metrics)
+            
+            round_global_metrics = wandb.Table(dataframe=pd.DataFrame(lst_global_metrics))
+            run.log({f"round {t} (GM) Metrics": round_global_metrics})
+            
+            lst_global_metrics_dfs.append(pd.DataFrame(lst_global_metrics))
+
+            self.aggregate_seed_pool(selected_client)
+            self.update_global_model_by_seed_pool()
+
+        return lst_global_metrics_dfs
+
     def create_model_by_seedpool(self, cur_round):
         tmp_model = deepcopy(self.model_w0)
         tmp_model.to(self.device)
@@ -149,7 +194,6 @@ class Server(object):
         if sum_prob != 1.0:
             self.probabilities /= sum_prob
         return self.probabilities
-
 
 
     def eval_clients(self, clients_list ,cur_round, include_eval= False):

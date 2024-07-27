@@ -21,7 +21,7 @@ class Trainer:
         self.client.eval_loader = self.prepare_dataloader(self.client.eval_ds, self.client.args.batch_size, self.client.data_collator)
         self.client.train_loader_genr = self.prepare_dataloader(self.client.train_ds_genr, self.client.args.batch_size, self.client.data_collator)
         self.client.eval_loader_genr = self.prepare_dataloader(self.client.eval_ds_genr, self.client.args.batch_size, self.client.data_collator)
-        
+
     def _run_batch(self, batch):
         self.client.optimizer.zero_grad()
         def closure():
@@ -146,7 +146,7 @@ class Trainer:
                     'labels': batch['labels'].to(self.client.device),
                     'attention_mask': batch['attention_mask'].to(self.client.device) 
                 }
-                 
+                
                 loss = _run_batch(batch)
 
                 if (not torch.isnan(loss)) and (self.args.grad_clip <= 0 or loss != 0.0):
