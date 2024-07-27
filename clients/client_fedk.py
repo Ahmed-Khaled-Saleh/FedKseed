@@ -17,6 +17,10 @@ class Client_fedk(BaseClient):
                  model,
                  criterion,
                  optimizer,
+                 train_ds_genr,
+                 eval_ds_genr,
+                 tokenizer,
+                 datacollator,
                  idx,
                  args,
                  candidate_seeds):
@@ -33,6 +37,10 @@ class Client_fedk(BaseClient):
         
         super().__init__(train_ds, eval_ds, model, criterion, optimizer)
 
+        self.train_ds_genr = train_ds_genr
+        self.eval_ds_genr = eval_ds_genr
+        self.tokenizer = tokenizer
+        self.data_collator = datacollator
         self.idx = idx
         self.args = args
         self.device = torch.device(f'{args.gpu}:{args.device}')

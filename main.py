@@ -66,7 +66,7 @@ def federated_training(client_list,
             client.model = deepcopy(server.model)
             
             metrics = {}
-            train_loss, val_loss = trainer.train(fed= True,
+            train_loss, val_loss, train_acc, val_acc = trainer.train(fed= True,
                                                  epochs= epochs,
                                                  local_iters= local_iters,
                                                  memory_record_dic= memory_record_dic,
@@ -75,7 +75,9 @@ def federated_training(client_list,
             train_loss = np.array(train_loss).mean()
             task = client.task if isinstance(client.task, str) else client.task[0]
 
-            metrics['train_loss'], metrics['val_loss'], metrics['task'] = train_loss, val_loss, task
+            metrics['train_loss'], metrics['val_loss'], metrics['task'], metrics['train_acc'], metrics['val_acc'] =\
+                  train_loss, val_loss, task, train_acc, val_acc
+            
             lst_global_metrics.append(metrics)
         
         round_global_metrics = wandb.Table(dataframe=pd.DataFrame(lst_global_metrics))
@@ -107,7 +109,9 @@ def process_main(args_config_fname):
     
     setup_seed(args.seed)
 
-    list_train_ds, list_eval_ds, _ = get_datasets(args)
+    loss_ds, gener_ds = get_datasets(args)
+    list_train_ds, list_eval_ds, tokenizer, datacollator = loss_ds
+    list_train_ds_genr, list_eval_ds_genr, _, _ = gener_ds
     
     if args.dataset == 'instruct':
         args.iid = 'meta'
@@ -130,7 +134,7 @@ def process_main(args_config_fname):
     
     # sample `K` candidate seeds
     candidate_seeds = np.random.randint(1, 100000000000, args.K)
-    server = get_server(args, eval_loader, candidate_seeds, log_dir)
+    server = get_server(args, candidate_seeds, log_dir)
 
     optimizer = MeZOOptimizer(server.model.parameters(),
                               lr= float(args.lr),
@@ -141,7 +145,7 @@ def process_main(args_config_fname):
     def criterion(out):
         return out.loss
 
-    client_list = get_client_list(list_train_ds, list_eval_ds, server.model, criterion, optimizer, args, candidate_seeds)
+    client_list = get_client_list(list_train_ds, list_eval_ds, server.model, criterion, optimizer, list_train_ds_genr, list_eval_ds_genr, tokenizer, datacollator, args, candidate_seeds)
     
 
     if args.log:
@@ -160,21 +164,21 @@ def process_main(args_config_fname):
     
     
 
-    # reset seed to have an eval_loader with the same data samples
-    args.eval_metric = previous_metric
-    setup_seed(args.seed)
-    _, eval_loader_final, _ = get_loaders(args, only_eval=True)
-    server.eval_loader = eval_loader_final
-    eval_result = server.eval(cur_round=args.rounds, eval_avg_acc=eval_avg_acc)
+    # # reset seed to have an eval_loader with the same data samples
+    # args.eval_metric = previous_metric
+    # setup_seed(args.seed)
+    # _, eval_loader_final, _ = get_loaders(args, only_eval=True)
+    # server.eval_loader = eval_loader_final
+    # eval_result = server.eval(cur_round=args.rounds, eval_avg_acc=eval_avg_acc)
     
-    if args.log:
-        with open(os.path.join(log_dir, 'final_eval.json'), 'w') as writer:
-            json.dump({
-                f'final_eval_{args.eval_metric}': eval_result
-            }, writer)
+    # if args.log:
+    #     with open(os.path.join(log_dir, 'final_eval.json'), 'w') as writer:
+    #         json.dump({
+    #             f'final_eval_{args.eval_metric}': eval_result
+    #         }, writer)
     
-    print(f'final round {args.eval_metric}: {eval_result}')
-    run.log({"Final Global Rouge":eval_result})
+    # print(f'final round {args.eval_metric}: {eval_result}')
+    # run.log({"Final Global Rouge":eval_result})
     run.finish()
 
 

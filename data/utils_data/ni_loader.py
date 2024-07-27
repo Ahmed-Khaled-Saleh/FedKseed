@@ -1,6 +1,7 @@
 import os
 import json
 from torch.utils.data import Dataset, ConcatDataset, DataLoader, random_split
+
 import copy
 import numpy as np
 from dataclasses import dataclass
@@ -124,27 +125,36 @@ def _filter_out_over_length(items, max_length):
     return [item for item in items if len(item['input']) < max_length]
 
 
+
+
+
 def get_instruction_dataset(args, tokenizer, only_eval=False):
     """
     only_eval: only effective with zeroshot set to `True`
     """
     train_set_names, eval_set_names = _get_task_splits()
-    list_train_loader = []
+
     lst_train_ds = []
+    lst_train_ds_genr = []
+    lst_eval_set = []
+    lst_eval_set_genr = []
+
     data_collator = LLMDataCollator(tokenizer=tokenizer)
     
     # if only_eval, the following lines won't be executed to save time.
     if not only_eval:
         print('load train sets')
         for idx, file_name in enumerate(train_set_names):
+            if idx > 200:
+                break
             with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
                 raw_data = json.load(reader)
                 task = raw_data['Categories'][0]
                 instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)
                 if len(instances) < 20:
                     continue
-                # sample 20% dataset
-                instances = np.random.choice(instances, int(len(instances) * 0.2), replace=False)
+                # sample 40% dataset
+                instances = np.random.choice(instances, int(len(instances) * 0.4), replace=False)
                 print(file_name, len(instances), max([len(item['input']) for item in instances]))
                 instruct = raw_data['Definition'][0]
                 data = []
@@ -152,34 +162,41 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
                     # only take the first output into consideration
                     data.append((instruct, item['input'], item['output'][0], task))
                 dataset = LLMDataset(data, tokenizer, use_prompts=args.use_prompts)
-                lst_train_ds.append((dataset, data_collator))
+                generation_dataset = LLMDataset(data, tokenizer, use_prompts=args.use_prompts, generation=True)
+                
+                # Split dataset into train and validation sets
+                train_size = int(0.8 * len(dataset))
+                train_size_genr = int(0.8 * len(generation_dataset))
+                val_size = len(dataset) - train_size
+                val_size_genr = len(generation_dataset) - train_size_genr
+                train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+                train_dataset_genr, val_dataset_genr = random_split(generation_dataset, [train_size_genr, val_size_genr])
+                lst_train_ds.append(train_dataset)
+                lst_train_ds_genr.append(train_dataset_genr)
+                lst_eval_set.append(val_dataset)
+                lst_eval_set_genr.append(val_dataset_genr)
+                args.num_clients = len(lst_train_ds)
 
-                # list_train_loader.append(DataLoader(dataset, shuffle=True, batch_size=args.batch_size, collate_fn=data_collator))
-            
-            if idx == args.num_clients - 1:
-                break
-        args.num_clients = len(list_train_loader)
-
-    list_eval_set = []
-    for file_name in eval_set_names:
-        with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
-            raw_data = json.load(reader)
-            instruct = raw_data['Definition'][0]
-            task = raw_data['Categories'][0]
-            instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)
-            if len(instances) > 20:
-                # sample 2% instances
-                instances = np.random.choice(instances, max(20, int(0.02 * len(instances))), replace=False)
-            data = []
-            for item in instances:
-                # only take the first output into consideration
-                data.append((instruct, item['input'], item['output'][0], task))
-            if args.eval_metric == 'loss':
-                list_eval_set.append((LLMDataset(data, tokenizer, use_prompts=args.use_prompts, generation=False), data_collator))
-            else:
-                list_eval_set.append((LLMDataset(data, tokenizer, use_prompts=args.use_prompts, generation=True), data_collator))
+    # list_eval_set = []
+    # for file_name in eval_set_names:
+    #     with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
+    #         raw_data = json.load(reader)
+    #         instruct = raw_data['Definition'][0]
+    #         task = raw_data['Categories'][0]
+    #         instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)
+    #         if len(instances) > 20:
+    #             # sample 2% instances
+    #             instances = np.random.choice(instances, max(20, int(0.02 * len(instances))), replace=False)
+    #         data = []
+    #         for item in instances:
+    #             # only take the first output into consideration
+    #             data.append((instruct, item['input'], item['output'][0], task))
+    #         if args.eval_metric == 'loss':
+    #             list_eval_set.append((LLMDataset(data, tokenizer, use_prompts=args.use_prompts, generation=False), data_collator))
+    #         else:
+    #             list_eval_set.append((LLMDataset(data, tokenizer, use_prompts=args.use_prompts, generation=True), data_collator))
     
     # universal_eval_set = ConcatDataset(list_eval_set)
     # eval_ds = universal_eval_set
     
-    return lst_train_ds, list_eval_set, tokenizer
+    return (lst_train_ds, lst_eval_set, tokenizer, data_collator), (lst_train_ds_genr, lst_eval_set_genr, tokenizer, data_collator)

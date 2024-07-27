@@ -67,7 +67,7 @@ def get_datasets(args, only_eval=False):
         
     elif args.dataset in ['instruct']:
         from data.utils_data.ni_loader import get_instruction_dataset
-        list_train_ds, lst_eval_ds, tokenizer = get_instruction_dataset(args, tokenizer, only_eval=only_eval)
+        list_train_ds, lst_eval_ds, tokenizer, data_collator = get_instruction_dataset(args, tokenizer, only_eval=only_eval)
         return list_train_ds, lst_eval_ds, tokenizer
     else:
         raise AttributeError(f'dataset {args.dataset} not implemented')

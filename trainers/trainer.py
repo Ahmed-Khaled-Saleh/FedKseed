@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.multiprocessing as mp
 from tqdm import tqdm
-
+from utils.validation import rouge_score
 
 class Trainer:
     def __init__(
@@ -17,7 +17,10 @@ class Trainer:
         '''
         
         self.client = client
-        
+        self.client.train_loader = self.prepare_dataloader(self.client.train_ds, self.client.args.batch_size, self.client.data_collator)
+        self.client.eval_loader = self.prepare_dataloader(self.client.eval_ds, self.client.args.batch_size, self.client.data_collator)
+        self.client.train_loader_genr = self.prepare_dataloader(self.client.train_ds_genr, self.client.args.batch_size, self.client.data_collator)
+        self.client.eval_loader_genr = self.prepare_dataloader(self.client.eval_ds_genr, self.client.args.batch_size, self.client.data_collator)
         
     def _run_batch(self, batch):
         self.client.optimizer.zero_grad()
@@ -109,8 +112,10 @@ class Trainer:
         self.client.model.eval()
 
         val_loss = self.eval()
-        
-        train_losses = []
+        train_acc = self.train_generate()
+        eval_acc = self.eval_generate()
+
+        train_loss = []
         for _ in range(epochs):
 
             if fed:
@@ -118,12 +123,12 @@ class Trainer:
             else:
                 avg_train_loss = self._run_epoch()
 
-            train_losses.append(avg_train_loss.item())
+            train_loss.append(avg_train_loss.item())
         
         if callbacks:
             callbacks[1](memory_record_dic, self.client.device)
 
-        return train_losses, val_loss
+        return train_loss, val_loss, train_acc, eval_acc
     
     def eval(self):
         total_loss = 0
@@ -150,4 +155,65 @@ class Trainer:
 
         return total_loss / len(self.client.eval_loader)
     
-   
+    def train_generate(self):
+        self.client.model = self.client.model.to(self.client.device)
+        self.client.model.eval()
+        
+        progress_bar_train = tqdm(range(len(self.client.train_loader_genr)))
+        acc_total_train = 0.0
+        num_train = 0
+        
+        for batch in self.client.train_loader:
+            input_ids = batch['input_ids'].to(self.client.device)
+            label_ids = batch['labels'].to(self.client.device)
+            output_ids = self.client.model.generate(
+                input_ids=input_ids,
+                max_new_tokens=128,
+                num_beams=1,
+            )
+            acc_total_train += rouge_score(output_ids[0][len(input_ids[0]):], label_ids[0], self.client.tokenizer)
+            progress_bar_train.update(1)
+            num_train += len(batch['input_ids'])
+            if num_train == 0:
+                num_train = 1e-10
+        print()
+        print()
+        self.client.model = self.client.model.cpu()
+        return acc_total_train / num_train
+    
+    def eval_generate(self):
+        self.client.model = self.client.model.to(self.device)
+        self.client.model.eval()
+        
+        progress_bar_eval = tqdm(range(len(self.client.eval_ds_genr)))
+        acc_total_eval = 0.0
+        num_eval = 0
+        
+        with torch.no_grad():
+            for batch in self.client.eval_loader_genr:
+                input_ids = batch['input_ids'].to(self.client.device)
+                label_ids = batch['labels'].to(self.client.device)
+                output_ids = self.client.model.generate(
+                    input_ids=input_ids,
+                    max_new_tokens=128,
+                    num_beams=1,
+                )
+                acc_total_eval += rouge_score(output_ids[0][len(input_ids[0]):], label_ids[0], self.client.tokenizer)  # noqa: F405
+                progress_bar_eval.update(1)
+                num_eval += len(batch['input_ids'])
+                if num_eval == 0:
+                    num_eval = 1e-10
+        print()
+        print()
+        self.client.model = self.client.model.cpu()
+        return acc_total_eval / num_eval
+    
+    def prepare_dataloader(self, dataset, batch_size: int, data_collator):
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            pin_memory=True,
+            shuffle=False,
+            collate_fn=data_collator        
+        )
+

@@ -16,9 +16,9 @@ from utils.helper_fuctions import *  # noqa: F403
 
 
 class Server(object):
-    def __init__(self, args, eval_loader, candidate_seeds, log_dir):
+    def __init__(self, args, candidate_seeds, log_dir):
         self.args = args
-        self.eval_loader = eval_loader
+        # self.eval_loader = eval_loader
         self.candidate_seeds = candidate_seeds
         self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
         self.log_dir = log_dir
