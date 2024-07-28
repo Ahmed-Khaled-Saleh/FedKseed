@@ -63,6 +63,7 @@ class Server(object):
         
         client_list = []
         for idx in range(args.num_clients):
+            print("Initializing the clients")
             client_list.append(Client_fedk(self.list_train_ds[idx],
                                            self.list_eval_ds[idx],
                                            None,
@@ -78,6 +79,7 @@ class Server(object):
                                            )
 
         self.client_list = client_list
+        print("Finished initializing the clients")
 
     def train(self,
               client_indices_rounds,
