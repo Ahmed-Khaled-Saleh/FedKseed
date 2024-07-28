@@ -73,8 +73,8 @@ def process_main(args_config_fname):
     
     setup_seed(args.seed)
     print("Generating the datasets...")
-    loss_ds = get_datasets(args)
-    list_train_ds, list_eval_ds, tokenizer, datacollator = loss_ds
+    list_train_ds, list_eval_ds, tokenizer, datacollator = get_datasets(args)
+    # list_train_ds, list_eval_ds, tokenizer, datacollator = loss_ds
     # list_train_ds_genr, list_eval_ds_genr, _, _ = gener_ds
     print("Datasets generated successfully.")
 

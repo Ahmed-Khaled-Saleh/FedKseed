@@ -153,7 +153,7 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
                 instances = _filter_out_over_length(raw_data['Instances'], max_length=args.max_length)
                 if len(instances) < 20:
                     continue
-                # sample 40% dataset
+                # sample 20% dataset
                 instances = np.random.choice(instances, int(len(instances) * 0.2), replace=False)
                 print(file_name, len(instances), max([len(item['input']) for item in instances]))
                 instruct = raw_data['Definition'][0]
@@ -175,7 +175,7 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
                 # lst_train_ds_genr.append(train_dataset_genr)
                 lst_eval_set.append(val_dataset)
                 # lst_eval_set_genr.append(val_dataset_genr)
-                args.num_clients = len(lst_train_ds)
+        args.num_clients = len(lst_train_ds)
 
     # list_eval_set = []
     # for file_name in eval_set_names:
