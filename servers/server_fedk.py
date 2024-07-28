@@ -15,9 +15,11 @@ from utils.validation import *  # noqa: F403
 from utils.helper_fuctions import *  # noqa: F403
 from trainers.trainer import Trainer
 from trainers.callbacks import empty_cach, log_memory
+from clients.client_fedk import Client_fedk
+from optimizers.mezo_torch import MeZOOptimizer
 
 class Server(object):
-    def __init__(self, args, candidate_seeds, log_dir):
+    def __init__(self, args, candidate_seeds, log_dir, **kwargs):
         self.args = args
         self.candidate_seeds = candidate_seeds
         self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
@@ -37,15 +39,6 @@ class Server(object):
         
         self.model = AutoModelForCausalLM.from_pretrained(args.model, device_map='cpu', torch_dtype=torch.float16, trust_remote_code=True)
 
-        # self.base_model = AutoModelForCausalLM.from_pretrained(args.model)
-        
-        # config = LoraConfig(
-        #     r=self.args.r,
-        #     lora_alpha=16,
-        #     lora_dropout=0.1,
-        #     bias="none")
-        # self.model = self.base_model#get_peft_model(deepcopy(self.base_model), config)
-
         self.model_w0 = deepcopy(self.model)
         self.seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
         
@@ -58,10 +51,35 @@ class Server(object):
         else:
             self.gradient_history = None
             self.probabilities = None
-    
+
+        self.optimizer = MeZOOptimizer(self.model.parameters(),
+                                       lr= float(self.args.lr),
+                                       zo_eps= self.args.zo_eps,
+                                       candidate_seeds= self.candidate_seeds,
+                                       weight_decay= self.args.weight_decay)
+        
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        
+        client_list = []
+        for idx in range(args.num_clients):
+            client_list.append(Client_fedk(self.list_train_ds[idx],
+                                           self.list_eval_ds[idx],
+                                           deepcopy(self.model),
+                                           self.criterion,
+                                           deepcopy(self.optimizer),
+                                           self.list_train_ds_genr[idx],
+                                           self.list_eval_ds_genr[idx],
+                                           self.tokenizer,
+                                           self.datacollator, 
+                                           idx, 
+                                           self.args,
+                                           self.candidate_seeds)
+                                           )
+
+        self.client_list = client_list
 
     def train(self,
-              client_list,
               client_indices_rounds,
               args,
               run,
@@ -69,7 +87,7 @@ class Server(object):
 
         lst_global_metrics_dfs = []
         for t in range(1, args.rounds + 1):
-            selected_client = [client_list[i] for i in client_indices_rounds[t-1]]
+            selected_client = [self.client_list[i] for i in client_indices_rounds[t-1]]
             
             lst_global_metrics = []
             

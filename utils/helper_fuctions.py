@@ -89,9 +89,9 @@ def get_client_list(list_train_ds, list_eval_ds, model, criterion, optimizer, li
     return client_list
 
 
-def get_server(args, candidate_seeds, log_dir):
+def get_server(args, candidate_seeds, log_dir, **kwargs):
     Server = get_class('servers.server_' + args.name, f'Server_{args.name}')
-    return Server(args, candidate_seeds=candidate_seeds, log_dir=log_dir)
+    return Server(args, candidate_seeds=candidate_seeds, log_dir=log_dir, **kwargs)
 
 
 def add_vocab(tokenizer):

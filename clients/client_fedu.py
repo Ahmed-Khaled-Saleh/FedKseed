@@ -1,87 +1,93 @@
-from optimizers.mezo_optimizer import *
-from optimizers.mezo_bias_optimizer import *
+from optimizers.mezo_optimizer import *  # noqa: F403
+from optimizers.mezo_bias_optimizer import *  # noqa: F403
 from tqdm import tqdm
+import os
+import numpy as np
+import torch
+import copy
+from utils.validation import *  # noqa: F403
+from optimizers.mezo_torch import MeZOOptimizer
+from trainers.trainer import Trainer
+from clients.base_client import BaseClient
+from copy import deepcopy
+class Client_fedu(BaseClient):
+    def __init__(self,
+                 train_ds,
+                 eval_ds,
+                 model,
+                 criterion,
+                 optimizer,
+                 train_ds_genr,
+                 eval_ds_genr,
+                 tokenizer,
+                 datacollator,
+                 idx,
+                 args,
+                 candidate_seeds, 
+                 beta,
+                 L_k,
+                 K):
 
+        '''
+        A client is defined as an object that contains :
 
-class Client(object):
-    def __init__(self, idx, args, candidate_seeds, train_loader):
+        1- **Essentials**:
+            dataseet (train, eval), model, loss function (criterion), and an optimizer.
+            
+        2- **Extra information**:
+            Task-dependent and algrithm-specifics
+        '''
+        
+        super().__init__(train_ds, eval_ds, model, criterion, optimizer)
+
+        self.train_ds_genr = train_ds_genr
+        self.eval_ds_genr = eval_ds_genr
+        self.tokenizer = tokenizer
+        self.data_collator = datacollator
         self.idx = idx
         self.args = args
-        self.train_loader = train_loader
-        self.train_iterator = iter(self.train_loader)
-        self.model = None
-
-        self.device = torch.device(f'cuda:{args.device}')
+        self.device = torch.device(f'{args.gpu}:{args.device}')
         self.candidate_seeds = candidate_seeds
-
-    def local_train_with_seed_pool(self, pulled_model, cur_round, memory_record_dic=None, probabilities=None, gradient_history=None):
-        self.model = pulled_model
-        self.model.to(self.device)
-        
-        if memory_record_dic is not None:
-            torch.cuda.empty_cache()
-        
-        # initialize a seed pool
         self.local_seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
 
-        lr = self.args.lr
+        self.task = self.dataset[0]['task']
+        self.task = self.task if isinstance(self.task, str) else self.task[0]
+        self.train_stat = {}
+        self.test_stats = {}
+        self.L_k = L_k
+        self.beta = beta
+        self.K = K
+
+    def aggregate_parameters(self, user_list, alk_connection):
+        avg_weight_different = copy.deepcopy(list(self.model.parameters()))
+        akl = alk_connection
+        for param in avg_weight_different:
+            param.data = torch.zeros_like(param.data)
         
-        if self.args.batch_or_epoch == 'epoch':
-            iter_steps = self.args.local_step * len(self.train_loader)
-        else:
-            iter_steps = self.args.local_step
+        # Calculate the diffence of model between all users or tasks
+        for i in range(len(user_list)):
+            if(self.idx != user_list[i].idx):
+                if(self.K > 0 and self.K <= 2):
+                    akl[int(self.idx)][int(user_list[i].idx)] = self.get_alk()
+                
+                l_model = deepcopy(self.model)
+                model_path = os.path.join(user_list[i].model_path, f"client_ + {user_list[i].idx}.pt")
+                l_model.load_state_dict(torch.load(model_path))
+                
+                for avg, current_task, other_tasks in zip(avg_weight_different, self.model.parameters(), l_model.parameters()):
+                    avg.data += akl[int(self.idx)][int(user_list[i].idx)] * (current_task.data.clone() - other_tasks.data.clone())
             
-        if self.args.bias_sampling:
-            assert probabilities is not None
-            framework = MeZOBiasOptimizer(self.model, args=self.args, lr=lr, candidate_seeds=self.candidate_seeds, probabilities=probabilities, gradient_history=gradient_history)
-        else:
-            framework = MeZOFramework(self.model, args=self.args, lr=lr, candidate_seeds=self.candidate_seeds)
-        self.model.eval()
-        with torch.inference_mode():
-            if self.args.batch_or_epoch == 'batch':
-                    loss_total_train = 0.0
-                    num_trained = 0
-                    progress_bar = tqdm(range(iter_steps))
-                    
-            for cur_step in range(iter_steps):
-                # init epoch progress bar
-                if self.args.batch_or_epoch == 'epoch':
-                    if cur_step % len(self.train_loader) == 0:
-                        loss_total_train = 0.0
-                        num_trained = 0
-                        progress_bar = tqdm(range(len(self.train_loader)))
-                try:
-                    batch = next(self.train_iterator)
-                except StopIteration:
-                    self.train_iterator = iter(self.train_loader)
-                    batch = next(self.train_iterator)
-                batch = {
-                    'input_ids': batch['input_ids'].to(self.device),
-                    'labels': batch['labels'].to(self.device),
-                    'attention_mask': batch['attention_mask'].to(self.device) 
-                }
-                logits, loss = framework.zo_step(batch, local_seed_pool=self.local_seed_pool)
-                progress_bar.update(1)
-                if (not torch.isnan(loss)) and (self.args.grad_clip <= 0 or loss != 0.0):
-                    loss_total_train += loss
-                    num_trained += len(batch['input_ids'])
-                if self.args.batch_or_epoch == 'epoch':
-                    progress_bar.set_description(f'client {self.idx} train at epoch {int(cur_step / len(self.train_loader)) + 1}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
-                else:
-                    progress_bar.set_description(f'client {self.idx} train at step {cur_step}, loss: {loss_total_train / num_trained if num_trained != 0 else 0.0}')
-        # save both CPU and GPU memory
-        del framework
-        self.model = None
-        
-        if memory_record_dic is not None:
-            memory_record_dic[self.device.index] = {}
-            memory_record_dic[self.device.index]['max_memory_allocated'] = torch.cuda.max_memory_allocated(self.device)
-            memory_record_dic[self.device.index]['max_memory_reserved'] = torch.cuda.max_memory_reserved(self.device)
+            l_model = None
+        for avg, current_task in zip(avg_weight_different, self.model.parameters()):
+            current_task.data = current_task.data - 0.5 * self.learning_rate * self.L_k * self.beta * self.local_epochs * avg
 
     def clear_model(self):
-        # clear model to same memory
         self.model = None
 
+    def _add_seed_pole(self, zo_random_seed, projected_grad):
+        if self.local_seed_pool is not None:
+            self.local_seed_pool[zo_random_seed] += projected_grad
+    
     def migrate(self, device):
         """
         migrate a client to a new device
@@ -93,3 +99,17 @@ class Client(object):
         pull model from the server
         """
         self.model = forked_global_model
+
+    def get_alk(self):
+        # temporary fix value of akl, all client has same value of akl
+        #akl = 0.25 # can set any value but need to modify eta accordingly
+        akl = 0.5
+        #akl = 1
+        return akl
+    
+    def save_model(self):
+        self.model_path = os.path.join("models", self.idx)
+        if not os.path.exists(self.model_path):
+            os.makedirs(self.model_path)
+
+        torch.save(self.model, os.path.join(self.model_path, "client_" + self.idx + ".pt"))

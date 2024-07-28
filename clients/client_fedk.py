@@ -23,7 +23,8 @@ class Client_fedk(BaseClient):
                  datacollator,
                  idx,
                  args,
-                 candidate_seeds):
+                 candidate_seeds,
+                 K= 0):
 
         '''
         A client is defined as an object that contains :

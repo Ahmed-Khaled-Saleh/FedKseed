@@ -15,9 +15,16 @@ from utils.validation import *  # noqa: F403
 from utils.helper_fuctions import *  # noqa: F403
 from trainers.trainer import Trainer
 from trainers.callbacks import empty_cach, log_memory
+from clients.client_fedu import Client_fedu
+
 
 class Server(object):
-    def __init__(self, args, candidate_seeds, log_dir):
+    def __init__(self,
+                 args, 
+                 candidate_seeds,
+                 log_dir,
+                 **kwargs):
+        
         self.args = args
         self.candidate_seeds = candidate_seeds
         self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
@@ -33,23 +40,49 @@ class Server(object):
             special_tokens["bos_token"] = DefaultToken.BOS_TOKEN.value
         if self.tokenizer.unk_token is None:
             special_tokens["unk_token"] = DefaultToken.UNK_TOKEN.value
+        
         self.tokenizer.add_special_tokens(special_tokens)
         
         self.model = AutoModelForCausalLM.from_pretrained(args.model, device_map='cpu', torch_dtype=torch.float16, trust_remote_code=True)
-
-        # self.base_model = AutoModelForCausalLM.from_pretrained(args.model)
-        
-        # config = LoraConfig(
-        #     r=self.args.r,
-        #     lora_alpha=16,
-        #     lora_dropout=0.1,
-        #     bias="none")
-        # self.model = self.base_model#get_peft_model(deepcopy(self.base_model), config)
-
         self.model_w0 = deepcopy(self.model)
         self.seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
         
         self.device = torch.device(f'cuda:{self.args.device}')
+        self.sub_data = self.args.cutoff
+
+        total_users = args.num_clients
+        N = total_users
+        b = np.random.uniform(0,1,size=(N,N))
+        b_symm = (b + b.T)/2
+        b_symm[b_symm < 0.25] = 0
+        self.alk_connection = b_symm
+        self.K = self.args.KK
+        self.L_k = self.args.L_k
+        self.beta = self.args.beta
+
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        
+        client_list = []
+        for idx in range(args.num_clients):
+            client_list.append(Client_fedu(self.list_train_ds[idx],
+                                           self.list_eval_ds[idx],
+                                           deepcopy(self.model),
+                                           self.criterion,
+                                           deepcopy(self.optimizer),
+                                           self.list_train_ds_genr[idx],
+                                           self.list_eval_ds_genr[idx],
+                                           self.tokenizer,
+                                           self.datacollator, 
+                                           idx, 
+                                           self.args,
+                                           self.candidate_seeds),
+                                           self.beta,
+                                           self.L_k,
+                                           self.K
+                                           )
+
+        self.client_list = client_list
 
         if self.args.bias_sampling:
             # initialize the probabilities of seeds
@@ -61,7 +94,6 @@ class Server(object):
     
 
     def train(self,
-              client_list,
               client_indices_rounds,
               args,
               run,
@@ -69,7 +101,7 @@ class Server(object):
 
         lst_global_metrics_dfs = []
         for t in range(1, args.rounds + 1):
-            selected_client = [client_list[i] for i in client_indices_rounds[t-1]]
+            selected_client = [self.client_list[i] for i in client_indices_rounds[t-1]]
             
             lst_global_metrics = []
             
@@ -80,6 +112,9 @@ class Server(object):
                 epochs = 1
                 
                 client.model = deepcopy(self.model)
+
+                if t > 1:
+                    client.model.load_state_dict(torch.load(os.path.join(client.model_path, f'client_{client.idx}.pt')))
                 
                 metrics = {}
                 train_loss, val_loss, train_acc, val_acc = trainer.train(fed= True,
@@ -95,15 +130,18 @@ class Server(object):
                     train_loss, val_loss, task, train_acc, val_acc
                 
                 lst_global_metrics.append(metrics)
+                client.save_model()
+                client.model = None
             
             round_global_metrics = wandb.Table(dataframe=pd.DataFrame(lst_global_metrics))
             run.log({f"round {t} (GM) Metrics": round_global_metrics})
             
             lst_global_metrics_dfs.append(pd.DataFrame(lst_global_metrics))
 
-            self.aggregate_seed_pool(selected_client)
-            self.update_global_model_by_seed_pool()
-
+            if(self.L_k != 0): # if L_K = 0 it is local model 
+                for client in selected_client:
+                    client.aggregate_parameters(selected_client, self.alk_connection)
+        
         return lst_global_metrics_dfs
 
     def create_model_by_seedpool(self, cur_round):

@@ -45,13 +45,12 @@ def local_training(client_list,
     return lst_clients_metrics
 
 def federated_training(server,
-                       client_list,
                        client_indices_rounds,
                        args,
                        run,
                        memory_record_dic):
     
-    lst_global_metrics_dfs = server.train(client_list, client_indices_rounds, args, run, memory_record_dic)
+    lst_global_metrics_dfs = server.train(client_indices_rounds, args, run, memory_record_dic)
 
     return lst_global_metrics_dfs
 
@@ -95,22 +94,26 @@ def process_main(args_config_fname):
     # since only CUDA device is available, load all models on device 0
     args.device = 0
     client_indices_rounds = get_client_indices_rounds(args)
-    client_list = []
     
     # sample `K` candidate seeds
     candidate_seeds = np.random.randint(1, 100000000000, args.K)
-    server = get_server(args, candidate_seeds, log_dir)
+    
 
-    optimizer = MeZOOptimizer(server.model.parameters(),
-                              lr= float(args.lr),
-                              zo_eps= args.zo_eps,
-                              candidate_seeds= candidate_seeds,
-                              weight_decay= args.weight_decay)
+    
     
     def criterion(out):
         return out.loss
 
-    client_list = get_client_list(list_train_ds, list_eval_ds, server.model, criterion, optimizer, list_train_ds_genr, list_eval_ds_genr, tokenizer, datacollator, args, candidate_seeds)
+    kwargs = {"list_train_ds": list_train_ds, 
+              "list_eval_ds": list_eval_ds, 
+              "criterion": criterion, 
+              "list_train_ds_genr": list_train_ds_genr, 
+              "list_eval_ds_genr": list_eval_ds_genr, 
+              "datacollator": datacollator}
+    
+    server = get_server(args, candidate_seeds, log_dir, **kwargs)
+
+    # client_list = get_client_list(list_train_ds, list_eval_ds, server.model, criterion, optimizer, list_train_ds_genr, list_eval_ds_genr, datacollator)
     
 
     if args.log:
@@ -118,32 +121,13 @@ def process_main(args_config_fname):
             json.dump(memory_record_dic, writer)
 
 
-    lst_local_metrics = local_training(client_list= client_list, server=server, memory_record_dic= memory_record_dic)
-    table_local_metrics = wandb.Table(dataframe=pd.DataFrame(lst_local_metrics))
-    run.log({"Local Metrics": table_local_metrics})
+    # lst_local_metrics = local_training(server=server, memory_record_dic= memory_record_dic)
+    # table_local_metrics = wandb.Table(dataframe=pd.DataFrame(lst_local_metrics))
+    # run.log({"Local Metrics": table_local_metrics})
 
-    lst_global_metrics_dfs = federated_training(client_list, client_indices_rounds, server, args, run, memory_record_dic)
-
+    lst_global_metrics_dfs = federated_training(server.client_list, client_indices_rounds, server, args, run, memory_record_dic)
     lst_global_metrics_dfs.to_csv(os.path.join(log_dir, 'global_metrics.csv'))
-    
-    
-    
 
-    # # reset seed to have an eval_loader with the same data samples
-    # args.eval_metric = previous_metric
-    # setup_seed(args.seed)
-    # _, eval_loader_final, _ = get_loaders(args, only_eval=True)
-    # server.eval_loader = eval_loader_final
-    # eval_result = server.eval(cur_round=args.rounds, eval_avg_acc=eval_avg_acc)
-    
-    # if args.log:
-    #     with open(os.path.join(log_dir, 'final_eval.json'), 'w') as writer:
-    #         json.dump({
-    #             f'final_eval_{args.eval_metric}': eval_result
-    #         }, writer)
-    
-    # print(f'final round {args.eval_metric}: {eval_result}')
-    # run.log({"Final Global Rouge":eval_result})
     run.finish()
 
 
