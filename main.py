@@ -72,11 +72,12 @@ def process_main(args_config_fname):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device)
     
     setup_seed(args.seed)
-
+    print("Generating the datasets...")
     loss_ds, gener_ds = get_datasets(args)
     list_train_ds, list_eval_ds, tokenizer, datacollator = loss_ds
     list_train_ds_genr, list_eval_ds_genr, _, _ = gener_ds
-    
+    print("Datasets generated successfully.")
+
     if args.dataset == 'instruct':
         args.iid = 'meta'
     log_dir = time_stamp
@@ -98,9 +99,6 @@ def process_main(args_config_fname):
     # sample `K` candidate seeds
     candidate_seeds = np.random.randint(1, 100000000000, args.K)
     
-
-    
-    
     def criterion(out):
         return out.loss
 
@@ -112,9 +110,7 @@ def process_main(args_config_fname):
               "datacollator": datacollator}
     
     server = get_server(args, candidate_seeds, log_dir, **kwargs)
-
-    # client_list = get_client_list(list_train_ds, list_eval_ds, server.model, criterion, optimizer, list_train_ds_genr, list_eval_ds_genr, datacollator)
-    
+    print("server initialized")    
 
     if args.log:
         with open(os.path.join(log_dir, 'memory.json'), 'w') as writer:
