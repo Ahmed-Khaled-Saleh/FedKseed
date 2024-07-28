@@ -1,5 +1,5 @@
 - name: 'fedu'
-  num_clients: 200
+  num_clients: 738
   num_clients_per_task: 25
   m: 0.05
   rounds: 40
@@ -14,7 +14,7 @@
   zerotask: 7
   dataset_subsample: 1.0
   model: 'datajuicer/LLaMA-1B-dj-refine-150B'
-  lr: 0.001
+  lr: 3e-07
   weight_decay: 0.0
   grad_clip: -100.0
   K: 4096
@@ -22,6 +22,7 @@
   L_k: 0.01
   cutoff : 0.5
   zo_eps: 0.0005
+  beta: 1
   bias_sampling: false
   bias_loss_clip: 1000.0
   grad_initial: 0.0

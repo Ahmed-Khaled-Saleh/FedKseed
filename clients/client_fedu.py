@@ -57,6 +57,7 @@ class Client_fedu(BaseClient):
         self.L_k = L_k
         self.beta = beta
         self.K = K
+        self.learning_rate = float(self.args.lr)
 
     def aggregate_parameters(self, user_list, alk_connection):
         avg_weight_different = copy.deepcopy(list(self.model.parameters()))
