@@ -125,7 +125,7 @@ def process_main(args_config_fname):
     # table_local_metrics = wandb.Table(dataframe=pd.DataFrame(lst_local_metrics))
     # run.log({"Local Metrics": table_local_metrics})
 
-    lst_global_metrics_dfs = federated_training(server.client_list, client_indices_rounds, server, args, run, memory_record_dic)
+    lst_global_metrics_dfs = federated_training(server, client_indices_rounds, args, run, memory_record_dic)
     lst_global_metrics_dfs.to_csv(os.path.join(log_dir, 'global_metrics.csv'))
 
     run.finish()

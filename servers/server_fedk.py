@@ -65,7 +65,7 @@ class Server(object):
         for idx in range(args.num_clients):
             client_list.append(Client_fedk(self.list_train_ds[idx],
                                            self.list_eval_ds[idx],
-                                           deepcopy(self.model),
+                                           None,
                                            self.criterion,
                                            deepcopy(self.optimizer),
                                            self.list_train_ds_genr[idx],
