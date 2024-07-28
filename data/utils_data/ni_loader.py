@@ -162,19 +162,19 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
                     # only take the first output into consideration
                     data.append((instruct, item['input'], item['output'][0], task))
                 dataset = LLMDataset(data, tokenizer, use_prompts=args.use_prompts)
-                generation_dataset = LLMDataset(data, tokenizer, use_prompts=args.use_prompts, generation=True)
+                # generation_dataset = LLMDataset(data, tokenizer, use_prompts=args.use_prompts, generation=True)
                 
                 # Split dataset into train and validation sets
                 train_size = int(0.8 * len(dataset))
-                train_size_genr = int(0.8 * len(generation_dataset))
+                # train_size_genr = int(0.8 * len(generation_dataset))
                 val_size = len(dataset) - train_size
-                val_size_genr = len(generation_dataset) - train_size_genr
+                # val_size_genr = len(generation_dataset) - train_size_genr
                 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-                train_dataset_genr, val_dataset_genr = random_split(generation_dataset, [train_size_genr, val_size_genr])
+                # train_dataset_genr, val_dataset_genr = random_split(generation_dataset, [train_size_genr, val_size_genr])
                 lst_train_ds.append(train_dataset)
-                lst_train_ds_genr.append(train_dataset_genr)
+                # lst_train_ds_genr.append(train_dataset_genr)
                 lst_eval_set.append(val_dataset)
-                lst_eval_set_genr.append(val_dataset_genr)
+                # lst_eval_set_genr.append(val_dataset_genr)
                 args.num_clients = len(lst_train_ds)
 
     # list_eval_set = []
@@ -199,4 +199,4 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
     # universal_eval_set = ConcatDataset(list_eval_set)
     # eval_ds = universal_eval_set
     
-    return (lst_train_ds, lst_eval_set, tokenizer, data_collator), (lst_train_ds_genr, lst_eval_set_genr, tokenizer, data_collator)
+    return (lst_train_ds, lst_eval_set, tokenizer, data_collator)#, (lst_train_ds_genr, lst_eval_set_genr, tokenizer, data_collator)
