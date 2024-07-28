@@ -65,6 +65,7 @@ class Server(object):
         
         client_list = []
         for idx in range(args.num_clients):
+            print("Initializing the clients")
             client_list.append(Client_fedu(self.list_train_ds[idx],
                                            self.list_eval_ds[idx],
                                            None,
@@ -83,6 +84,7 @@ class Server(object):
                                            )
 
         self.client_list = client_list
+        print("Finished initializing the clients")
 
         if self.args.bias_sampling:
             # initialize the probabilities of seeds
@@ -101,6 +103,7 @@ class Server(object):
 
         lst_global_metrics_dfs = []
         for t in range(1, args.rounds + 1):
+            print("Starting the federated loop")
             selected_client = [self.client_list[i] for i in client_indices_rounds[t-1]]
             
             lst_global_metrics = []
