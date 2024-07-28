@@ -46,7 +46,7 @@ class Client_fedu(BaseClient):
         self.data_collator = datacollator
         self.idx = idx
         self.args = args
-        self.device = torch.device(f'{args.gpu}:{args.device}')
+        self.device = torch.device(f'cuda:{self.args.device}')
         self.candidate_seeds = candidate_seeds
         self.local_seed_pool = {seed: 0.0 for seed in self.candidate_seeds}
 
