@@ -1,5 +1,5 @@
 - name: 'fedu'
-  num_clients: 738
+  num_clients: 200
   num_clients_per_task: 25
   m: 0.05
   rounds: 40
