@@ -49,9 +49,9 @@ def federated_training(server,
                        args,
                        run,
                        memory_record_dic):
-    
+    print("Starting the Federated Training...")
     lst_global_metrics_dfs = server.train(client_indices_rounds, args, run, memory_record_dic)
-
+    
     return lst_global_metrics_dfs
 
 def process_main(args_config_fname):

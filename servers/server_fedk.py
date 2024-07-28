@@ -62,7 +62,17 @@ class Server(object):
             setattr(self, key, value)
         self.list_train_ds_genr = [0 for _ in range(args.num_clients)]
         self.list_eval_ds_genr = [0 for _ in range(args.num_clients)]
+
         
+
+    def train(self,
+              client_indices_rounds,
+              args,
+              run,
+              memory_record_dic):
+
+        lst_global_metrics_dfs = []
+
         client_list = []
         for idx in range(args.num_clients):
             print("Initializing the clients")
@@ -82,14 +92,7 @@ class Server(object):
 
         self.client_list = client_list
         print("Finished initializing the clients")
-
-    def train(self,
-              client_indices_rounds,
-              args,
-              run,
-              memory_record_dic):
-
-        lst_global_metrics_dfs = []
+        
         for t in range(1, args.rounds + 1):
             selected_client = [self.client_list[i] for i in client_indices_rounds[t-1]]
             
