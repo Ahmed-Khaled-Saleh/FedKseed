@@ -10,6 +10,7 @@ from optimizers.mezo_torch import MeZOOptimizer
 from trainers.trainer import Trainer
 from clients.base_client import BaseClient
 from copy import deepcopy
+
 class Client_fedu(BaseClient):
     def __init__(self,
                  train_ds,

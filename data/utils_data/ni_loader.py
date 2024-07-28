@@ -154,7 +154,7 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
                 if len(instances) < 20:
                     continue
                 # sample 40% dataset
-                instances = np.random.choice(instances, int(len(instances) * 0.4), replace=False)
+                instances = np.random.choice(instances, int(len(instances) * 0.2), replace=False)
                 print(file_name, len(instances), max([len(item['input']) for item in instances]))
                 instruct = raw_data['Definition'][0]
                 data = []
