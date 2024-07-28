@@ -124,25 +124,20 @@ class Server(object):
 
         return lst_global_metrics_dfs
 
-    def create_model_by_seedpool(self, cur_round):
-        tmp_model = deepcopy(self.model_w0)
-        tmp_model.to(self.device)
-
-        lr = float(self.args.lr)
-        lr = lr * math.pow(self.args.lr_decay, cur_round - 1)
-        if self.args.lr_decay != 1.0:
-            raise ValueError('currently seed pool only supports constant learning rate')
-        # replace local model with initial weights
-        framework = MeZOFramework(tmp_model, args=self.args, lr=lr, candidate_seeds=self.candidate_seeds)  # noqa: F405
+    def update_global_model_by_seed_pool(self):
+        self.model = deepcopy(self.model_w0)
+        
+        optimizer = MeZOOptimizer(self.model.parameters(), lr=float(self.args.lr), zo_eps=self.args.zo_eps, 
+                                  local_seed_pool= self.seed_pool, candidate_seeds= self.candidate_seeds)  # noqa: F405
+        
         progress_bar = tqdm(range(len(self.seed_pool))) 
+
         # pull the latest model via accumulated {seed, grad} pairs on the server
         for seed, grad in self.seed_pool.items():
-            if grad != 0:
-                framework.zo_update(seed=seed, grad=grad)
+            if grad != 0.0:
+                optimizer._sgd_step(seed=seed, grad=grad)
             progress_bar.update(1)
-            progress_bar.set_description(f'pull global model at round{cur_round}')
-        tmp_model = tmp_model.cpu()
-        return tmp_model
+            progress_bar.set_description('server update global model')
 
     def aggregate_seed_pool(self, selected_client_list):
         # step 7 in the FedK algorithm
@@ -161,19 +156,19 @@ class Server(object):
         for client in selected_client_list:
             client.clear_model()
 
-    def update_global_model_by_seed_pool(self):
-        self.model = deepcopy(self.model_w0)
-        self.model.to(self.device)
+    # def update_global_model_by_seed_pool(self):
+    #     self.model = deepcopy(self.model_w0)
+    #     self.model.to(self.device)
         
-        framework = MeZOFramework(self.model, args=self.args, lr=float(self.args.lr), candidate_seeds=self.candidate_seeds)  # noqa: F405
-        progress_bar = tqdm(range(len(self.seed_pool))) 
+    #     framework = MeZOFramework(self.model, args=self.args, lr=float(self.args.lr), candidate_seeds=self.candidate_seeds)  # noqa: F405
+    #     progress_bar = tqdm(range(len(self.seed_pool))) 
 
-        # pull the latest model via accumulated {seed, grad} pairs on the server
-        for seed, grad in self.seed_pool.items():
-            if grad != 0.0:
-                framework.zo_update(seed=seed, grad=grad)
-            progress_bar.update(1)
-            progress_bar.set_description('server update global model')
+    #     # pull the latest model via accumulated {seed, grad} pairs on the server
+    #     for seed, grad in self.seed_pool.items():
+    #         if grad != 0.0:
+    #             framework.zo_update(seed=seed, grad=grad)
+    #         progress_bar.update(1)
+    #         progress_bar.set_description('server update global model')
 
     def prepare_aggregate(self):
         self.model_for_aggregate = deepcopy(self.model)
