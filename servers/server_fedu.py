@@ -63,6 +63,8 @@ class Server(object):
         for key, value in kwargs.items():
             setattr(self, key, value)
         
+        self.list_train_ds_genr = [0 for _ in range(args.num_clients)]
+        self.list_eval_ds_genr = [0 for _ in range(args.num_clients)]
         client_list = []
         for idx in range(args.num_clients):
             print("Initializing the clients")
