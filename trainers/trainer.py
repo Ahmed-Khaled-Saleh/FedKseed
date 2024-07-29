@@ -22,6 +22,7 @@ class Trainer:
         self.client.train_loader_genr = self.prepare_dataloader(self.client.train_ds_genr, self.client.args.batch_size, self.client.data_collator)
         self.client.eval_loader_genr = self.prepare_dataloader(self.client.eval_ds_genr, self.client.args.batch_size, self.client.data_collator)
         self.client.train_iterator = iter(self.client.train_loader)
+        
     def _run_batch(self, batch):
         self.client.optimizer.zero_grad()
         def closure():

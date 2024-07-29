@@ -101,10 +101,10 @@ class Server(object):
                 
                 client.model = deepcopy(self.model)
                 client.optimizer = deepcopy(MeZOOptimizer(self.model.parameters(),
-                                       lr= float(self.args.lr),
-                                       zo_eps= self.args.zo_eps,
-                                       candidate_seeds= self.candidate_seeds,
-                                       weight_decay= self.args.weight_decay))
+                                            lr= float(self.args.lr),
+                                            zo_eps= self.args.zo_eps,
+                                            candidate_seeds= self.candidate_seeds,
+                                            weight_decay= self.args.weight_decay))
                 
                 metrics = {}
                 train_loss, val_loss, train_acc, val_acc = trainer.train(fed= True,
