@@ -15,10 +15,12 @@ class MeZOOptimizer(Optimizer):
                         candidate_seeds= candidate_seeds,
                         weight_decay=weight_decay)
         
+        super(MeZOOptimizer, self).__init__(params, defaults)
+        
         self.candidate_seeds = candidate_seeds
         self.zo_eps = zo_eps
 
-        super(MeZOOptimizer, self).__init__(params, defaults)
+        
 
     @torch.no_grad()
     def step(self, closure):
