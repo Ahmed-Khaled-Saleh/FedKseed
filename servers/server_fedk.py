@@ -94,17 +94,18 @@ class Server(object):
             lst_global_metrics = []
             
             for client in selected_client:
-                trainer = Trainer(client)
-            
-                local_iters = client.args.local_step
-                epochs = 1
-                
                 client.model = deepcopy(self.model)
-                client.optimizer = deepcopy(MeZOOptimizer(self.model.parameters(),
+                
+                client.optimizer = deepcopy(MeZOOptimizer(client.model.parameters(),
                                             lr= float(self.args.lr),
                                             zo_eps= self.args.zo_eps,
                                             candidate_seeds= self.candidate_seeds,
                                             weight_decay= self.args.weight_decay))
+                
+                trainer = Trainer(client)
+            
+                local_iters = client.args.local_step
+                epochs = 1
                 
                 metrics = {}
                 train_loss, val_loss, train_acc, val_acc = trainer.train(fed= True,
