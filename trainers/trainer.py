@@ -149,7 +149,7 @@ class Trainer:
                 
                 loss = _run_batch(batch)
 
-                if (not torch.isnan(loss)) and (self.args.grad_clip <= 0 or loss != 0.0):
+                if (not torch.isnan(loss)) and (self.client.args.grad_clip <= 0 or loss != 0.0):
                     continue
                 total_loss += loss              
 
