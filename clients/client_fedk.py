@@ -38,6 +38,7 @@ class Client_fedk(BaseClient):
         
         super().__init__(train_ds, eval_ds, model, criterion, optimizer)
 
+        
         self.train_ds_genr = train_ds_genr
         self.eval_ds_genr = eval_ds_genr
         self.tokenizer = tokenizer
