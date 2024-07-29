@@ -52,11 +52,6 @@ class Server(object):
             self.gradient_history = None
             self.probabilities = None
 
-        self.optimizer = MeZOOptimizer(self.model.parameters(),
-                                       lr= float(self.args.lr),
-                                       zo_eps= self.args.zo_eps,
-                                       candidate_seeds= self.candidate_seeds,
-                                       weight_decay= self.args.weight_decay)
         
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -80,7 +75,7 @@ class Server(object):
                                            self.list_eval_ds[idx],
                                            None,
                                            self.criterion,
-                                           deepcopy(self.optimizer),
+                                           None, #deepcopy(self.optimizer),
                                            self.list_train_ds_genr[idx],
                                            self.list_eval_ds_genr[idx],
                                            self.tokenizer,
@@ -105,6 +100,11 @@ class Server(object):
                 epochs = 1
                 
                 client.model = deepcopy(self.model)
+                client.optimizer = deepcopy(MeZOOptimizer(self.model.parameters(),
+                                       lr= float(self.args.lr),
+                                       zo_eps= self.args.zo_eps,
+                                       candidate_seeds= self.candidate_seeds,
+                                       weight_decay= self.args.weight_decay))
                 
                 metrics = {}
                 train_loss, val_loss, train_acc, val_acc = trainer.train(fed= True,
