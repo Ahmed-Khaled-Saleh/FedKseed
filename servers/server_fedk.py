@@ -70,7 +70,8 @@ class Server(object):
 
         client_list = []
         for idx in range(args.num_clients):
-            print("Initializing the clients")
+            # print("Initializing the clients")
+            print("Self.candidate_seeds: ", self.candidate_seeds)
             client_list.append(Client_fedk(self.list_train_ds[idx],
                                            self.list_eval_ds[idx],
                                            None,
@@ -82,9 +83,10 @@ class Server(object):
                                            self.datacollator, 
                                            idx, 
                                            self.args,
-                                           self.candidate_seeds)
+                                           candidate_seeds= self.candidate_seeds)
                                            )
 
+        
         self.client_list = client_list
         print("Finished initializing the clients")
         

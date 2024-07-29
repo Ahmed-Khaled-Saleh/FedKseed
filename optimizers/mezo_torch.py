@@ -16,7 +16,7 @@ class MeZOOptimizer(Optimizer):
                         weight_decay=weight_decay)
         
         super(MeZOOptimizer, self).__init__(params, defaults)
-        
+        print(f"Candidate seeds inside __init__ of Optimizer: {self.candidate_seeds}")
         self.candidate_seeds = candidate_seeds
         self.zo_eps = zo_eps
 
@@ -26,7 +26,6 @@ class MeZOOptimizer(Optimizer):
     def step(self, closure):
         if closure is None:
             raise ValueError("Closure is required for MeZOOptimizer")
-        import ipdb; ipdb.set_trace()
         print(f"Candidate seeds: {self.candidate_seeds}")
         self.zo_random_seed = np.random.choice(self.candidate_seeds, 1)[0]
         
