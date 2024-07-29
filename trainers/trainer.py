@@ -133,7 +133,7 @@ class Trainer:
     def eval(self):
         total_loss = 0
 
-        def _run_batch(self, batch):
+        def _run_batch(batch):
             out = self.client.model(**batch)
             loss = self.client.criterion(out)
             return loss
