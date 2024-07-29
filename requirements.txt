@@ -66,3 +66,4 @@ xxhash==3.4.1
 yarl==1.9.2
 PyYAML==6.0.1
 wandb==0.17.2 
+ipdb
