@@ -167,7 +167,7 @@ class Trainer:
         acc_total_train = 0.0
         num_train = 0
         
-        for batch in self.client.train_loader:
+        for batch in self.client.train_loader_genr:
             input_ids = batch['input_ids'].to(self.client.device)
             label_ids = batch['labels'].to(self.client.device)
             output_ids = self.client.model.generate(
@@ -189,7 +189,7 @@ class Trainer:
         self.client.model = self.client.model.to(self.device)
         self.client.model.eval()
         
-        progress_bar_eval = tqdm(range(len(self.client.eval_ds_genr)))
+        progress_bar_eval = tqdm(range(len(self.client.eval_loader_genr)))
         acc_total_eval = 0.0
         num_eval = 0
         
