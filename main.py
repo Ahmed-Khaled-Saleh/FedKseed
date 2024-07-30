@@ -95,7 +95,7 @@ def process_main(args_config_fname):
     # since only CUDA device is available, load all models on device 0
     args.device = 0
     client_indices_rounds = get_client_indices_rounds(args)
-    
+    print("client indices rounds generated", client_indices_rounds)
     # sample `K` candidate seeds
     candidate_seeds = np.random.randint(1, 100000000000, args.K)
     
