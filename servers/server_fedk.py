@@ -92,6 +92,7 @@ class Server(object):
             lst_global_metrics = []
             print("Starting round ", t)
             print("****************************************")
+            print(selected_client)
             for client in selected_client:
                 client.model = deepcopy(self.model)
                 
