@@ -17,7 +17,6 @@ class Trainer:
         '''
         
         self.client = client
-        print("client model: ", self.client.model)
         self.client.train_loader = self.prepare_dataloader(self.client.train_ds, self.client.args.batch_size, self.client.data_collator)
         self.client.eval_loader = self.prepare_dataloader(self.client.eval_ds, self.client.args.batch_size, self.client.data_collator)
         self.client.train_loader_genr = self.prepare_dataloader(self.client.train_ds_genr, self.client.args.batch_size, self.client.data_collator)
@@ -128,6 +127,8 @@ class Trainer:
                 avg_train_loss = self._run_epoch()
 
             train_loss.append(avg_train_loss.item())
+
+        self.client.model = None
         
         if callbacks:
             callbacks[1](memory_record_dic, self.client.device)
@@ -186,7 +187,7 @@ class Trainer:
         return acc_total_train / num_train
     
     def eval_generate(self):
-        self.client.model = self.client.model.to(self.device)
+        self.client.model = self.client.model.to(self.client.device)
         self.client.model.eval()
         
         progress_bar_eval = tqdm(range(len(self.client.eval_loader_genr)))
@@ -209,7 +210,6 @@ class Trainer:
                     num_eval = 1e-10
         print()
         print()
-        self.client.model = self.client.model.cpu()
         return acc_total_eval / num_eval
     
     def prepare_dataloader(self, dataset, batch_size: int, data_collator):

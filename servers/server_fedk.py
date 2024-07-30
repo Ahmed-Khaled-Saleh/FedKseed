@@ -120,7 +120,7 @@ class Server(object):
                     train_loss, val_loss, task, train_acc, val_acc
                 
                 lst_global_metrics.append(metrics)
-            
+                
             round_global_metrics = wandb.Table(dataframe=pd.DataFrame(lst_global_metrics))
             run.log({f"round {t} (GM) Metrics": round_global_metrics})
             
