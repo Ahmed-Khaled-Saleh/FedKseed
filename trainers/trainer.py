@@ -17,6 +17,7 @@ class Trainer:
         '''
         
         self.client = client
+        print("client model: ", self.client.model)
         self.client.train_loader = self.prepare_dataloader(self.client.train_ds, self.client.args.batch_size, self.client.data_collator)
         self.client.eval_loader = self.prepare_dataloader(self.client.eval_ds, self.client.args.batch_size, self.client.data_collator)
         self.client.train_loader_genr = self.prepare_dataloader(self.client.train_ds_genr, self.client.args.batch_size, self.client.data_collator)
@@ -105,6 +106,7 @@ class Trainer:
               local_iters= 1,
               memory_record_dic= None,
               callbacks= []):
+        
         print('Inside the train () function of client ', self.client.idx)
         self.client.model.to(self.client.device)
 
