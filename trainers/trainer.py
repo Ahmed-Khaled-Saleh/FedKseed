@@ -82,7 +82,7 @@ class Trainer:
                 }
                 
                 loss = self._run_batch(batch)
-                print(loss)
+                print(f'Batch loss is {loss}')
                 progress_bar.update(1)
                 progress_bar.set_description(f'client {self.client.idx} train at step {r}, loss: {total_loss / num_trained if num_trained != 0 else 0.0}')
 
