@@ -16,9 +16,8 @@ class MeZOOptimizer(Optimizer):
                         weight_decay=weight_decay)
         
         super(MeZOOptimizer, self).__init__(params, defaults)
-        print(f"Candidate seeds inside __init__ of Optimizer: {self.candidate_seeds}")
-        # self.candidate_seeds = candidate_seeds
-        # self.zo_eps = zo_eps
+        self.candidate_seeds = candidate_seeds
+        self.zo_eps = zo_eps
 
         
 

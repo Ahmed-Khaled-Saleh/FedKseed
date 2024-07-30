@@ -74,7 +74,7 @@ class Server(object):
                                            self.list_eval_ds[idx],
                                            None,
                                            self.criterion,
-                                           None, #deepcopy(self.optimizer),
+                                           None,
                                            self.list_train_ds_genr[idx],
                                            self.list_eval_ds_genr[idx],
                                            self.tokenizer,
