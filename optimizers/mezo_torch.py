@@ -19,13 +19,20 @@ class MeZOOptimizer(Optimizer):
         self.candidate_seeds = candidate_seeds
         self.zo_eps = zo_eps
 
+
+    def get_candidate_seeds(self):
+        # Method to retrieve candidate_seeds from the first param group
+        if len(self.param_groups) > 0:
+            return self.param_groups[0]['candidate_seeds']
+        return None
         
 
     @torch.no_grad()
     def step(self, closure):
         if closure is None:
             raise ValueError("Closure is required for MeZOOptimizer")
-        print(f"Candidate seeds: {self.candidate_seeds}")
+        # print(f"Candidate seeds: {self.candidate_seeds}")
+        self.candidate_seeds = self.get_candidate_seeds()
         self.zo_random_seed = np.random.choice(self.candidate_seeds, 1)[0]
         
         orig_params = {}

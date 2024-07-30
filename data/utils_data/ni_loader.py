@@ -145,7 +145,7 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
     if not only_eval:
         print('load train sets')
         for idx, file_name in enumerate(train_set_names):
-            if idx > 200:
+            if idx > 5:
                 break
             with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
                 raw_data = json.load(reader)
