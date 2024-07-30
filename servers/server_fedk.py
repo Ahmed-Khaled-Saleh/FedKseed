@@ -70,8 +70,6 @@ class Server(object):
 
         client_list = []
         for idx in range(args.num_clients):
-            # print("Initializing the clients")
-            print("Self.candidate_seeds: ", self.candidate_seeds)
             client_list.append(Client_fedk(self.list_train_ds[idx],
                                            self.list_eval_ds[idx],
                                            None,

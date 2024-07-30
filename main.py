@@ -73,9 +73,9 @@ def process_main(args_config_fname):
     
     setup_seed(args.seed)
     print("Generating the datasets...")
-    list_train_ds, list_eval_ds, tokenizer, datacollator = get_datasets(args)
-    # list_train_ds, list_eval_ds, tokenizer, datacollator = loss_ds
-    # list_train_ds_genr, list_eval_ds_genr, _, _ = gener_ds
+    loss_ds, gener_ds = get_datasets(args)
+    list_train_ds, list_eval_ds, tokenizer, datacollator = loss_ds
+    list_train_ds_genr, list_eval_ds_genr, _, _ = gener_ds
     print("Datasets generated successfully.")
 
     if args.dataset == 'instruct':
@@ -105,8 +105,8 @@ def process_main(args_config_fname):
     kwargs = {"list_train_ds": list_train_ds, 
               "list_eval_ds": list_eval_ds, 
               "criterion": criterion, 
-              "list_train_ds_genr": None,#list_train_ds_genr, 
-              "list_eval_ds_genr": None,#list_eval_ds_genr, 
+              "list_train_ds_genr": list_train_ds_genr, 
+              "list_eval_ds_genr": list_eval_ds_genr, 
               "datacollator": datacollator}
     
     server = get_server(args, candidate_seeds, log_dir, **kwargs)
