@@ -136,7 +136,7 @@ class Server(object):
         self.model = deepcopy(self.model_w0)
         
         optimizer = MeZOOptimizer(self.model.parameters(), lr=float(self.args.lr), zo_eps=self.args.zo_eps, 
-                                  local_seed_pool= self.seed_pool, candidate_seeds= self.candidate_seeds)  # noqa: F405
+                                  candidate_seeds= self.candidate_seeds)  # noqa: F405
         
         progress_bar = tqdm(range(len(self.seed_pool))) 
 

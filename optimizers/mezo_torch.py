@@ -31,8 +31,8 @@ class MeZOOptimizer(Optimizer):
     def step(self, closure):
         if closure is None:
             raise ValueError("Closure is required for MeZOOptimizer")
-        # print(f"Candidate seeds: {self.candidate_seeds}")
         self.candidate_seeds = self.get_candidate_seeds()
+        print(f"Candidate seeds: {self.candidate_seeds}")
         self.zo_random_seed = np.random.choice(self.candidate_seeds, 1)[0]
         
         orig_params = {}
@@ -63,7 +63,10 @@ class MeZOOptimizer(Optimizer):
         return loss_pos, self.zo_random_seed, self.projected_grad
     
     def _sgd_step(self, seed= None, grad= None):
-
+        
+        self.candidate_seeds = self.get_candidate_seeds()
+        print(f"Candidate seeds: {self.candidate_seeds}")
+        
         if seed is None:
             seed = self.zo_random_seed
         if grad is None:
