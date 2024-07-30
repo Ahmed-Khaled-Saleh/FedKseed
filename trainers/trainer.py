@@ -53,6 +53,7 @@ class Trainer:
                 if (not torch.isnan(loss)) and (self.client.args.grad_clip <= 0 or loss != 0.0):
                     continue
                 total_loss += loss
+                print(loss)
                 
                 if i % 1000 == 999:
                     last_loss = total_loss / 1000 
