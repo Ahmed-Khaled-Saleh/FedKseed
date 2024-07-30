@@ -88,7 +88,7 @@ class Server(object):
         
         for t in range(1, args.rounds + 1):
             print("length of client list: ", len(self.client_list))
-            print("length of client indices rounds: ", len(client_indices_rounds))
+            print("length of client indices rounds: ", len(client_indices_rounds[t-1]))
             selected_client = [self.client_list[i] for i in client_indices_rounds[t-1]]
             
             lst_global_metrics = []
@@ -135,7 +135,7 @@ class Server(object):
                 run.log({"Val loss": metric['val_loss']})
                 run.log({"Train acc": metric['train_acc']})
                 run.log({"Val acc": metric['val_acc']})
-                
+
 
 
             round_global_metrics = wandb.Table(dataframe=pd.DataFrame(lst_global_metrics))
