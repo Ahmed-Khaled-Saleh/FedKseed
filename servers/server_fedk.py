@@ -118,6 +118,8 @@ class Server(object):
                 train_loss = np.array(train_loss).mean()
                 task = client.task if isinstance(client.task, str) else client.task[0]
 
+                
+
                 metrics['train_loss'], metrics['val_loss'], metrics['task'], metrics['train_acc'], metrics['val_acc'] = \
                     train_loss, val_loss, task, train_acc, val_acc
                 
@@ -126,7 +128,16 @@ class Server(object):
                 print(f"Round Sats for client {client_list.idx}: {metrics}")
 
                 lst_global_metrics.append(metrics)
+            
+
+            for metric in lst_global_metrics:
+                run.log({"Train loss": metric['train_loss']})
+                run.log({"Val loss": metric['val_loss']})
+                run.log({"Train acc": metric['train_acc']})
+                run.log({"Val acc": metric['val_acc']})
                 
+
+
             round_global_metrics = wandb.Table(dataframe=pd.DataFrame(lst_global_metrics))
             run.log({f"round {t} (GM) Metrics": round_global_metrics})
             
