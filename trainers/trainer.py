@@ -68,6 +68,7 @@ class Trainer:
 
         with torch.inference_mode():
             for r in range(local_iters):
+                print("local iteration: ", r)
                 num_trained = 0
                 try:
                     batch = next(self.client.train_iterator)
@@ -104,7 +105,7 @@ class Trainer:
               local_iters= 1,
               memory_record_dic= None,
               callbacks= []):
-        
+        print('Inside the train () function of client ', self.client.idx)
         self.client.model.to(self.client.device)
 
         if callbacks:
@@ -213,8 +214,8 @@ class Trainer:
         return DataLoader(
             dataset,
             batch_size=batch_size,
-            pin_memory=True,
-            shuffle=False,
+            # pin_memory=True,
+            shuffle=True,
             collate_fn=data_collator        
         )
 
