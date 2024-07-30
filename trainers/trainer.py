@@ -113,8 +113,8 @@ class Trainer:
         self.client.model.eval()
 
         val_loss = self.eval()
-        # train_acc = self.train_generate()
-        # eval_acc = self.eval_generate()
+        train_acc = self.train_generate()
+        eval_acc = self.eval_generate()
 
         train_loss = []
         for _ in range(epochs):
@@ -129,7 +129,7 @@ class Trainer:
         if callbacks:
             callbacks[1](memory_record_dic, self.client.device)
 
-        return train_loss, val_loss, None, None#train_acc, eval_acc
+        return train_loss, val_loss, train_acc, eval_acc
     
     def eval(self):
         total_loss = 0
