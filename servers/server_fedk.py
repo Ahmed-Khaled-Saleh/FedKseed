@@ -119,6 +119,10 @@ class Server(object):
                 metrics['train_loss'], metrics['val_loss'], metrics['task'], metrics['train_acc'], metrics['val_acc'] = \
                     train_loss, val_loss, task, train_acc, val_acc
                 
+                print("Client ", client.idx, " finished training")
+                print("****************************************")
+                print(f"Round Sats for client {client_list.idx}: {metrics}")
+
                 lst_global_metrics.append(metrics)
                 
             round_global_metrics = wandb.Table(dataframe=pd.DataFrame(lst_global_metrics))
