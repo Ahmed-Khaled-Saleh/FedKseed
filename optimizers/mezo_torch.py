@@ -25,6 +25,12 @@ class MeZOOptimizer(Optimizer):
         if len(self.param_groups) > 0:
             return self.param_groups[0]['candidate_seeds']
         return None
+    
+    def get_zoeps(self):
+        # Method to retrieve zo_eps from the first param group
+        if len(self.param_groups) > 0:
+            return self.param_groups[0]['zo_eps']
+        return
         
 
     @torch.no_grad()
@@ -34,6 +40,7 @@ class MeZOOptimizer(Optimizer):
         self.candidate_seeds = self.get_candidate_seeds()
         print(f"Candidate seeds: {self.candidate_seeds}")
         self.zo_random_seed = np.random.choice(self.candidate_seeds, 1)[0]
+        self.zo_eps = self.get_zoeps()
         
         orig_params = {}
         for group in self.param_groups:
@@ -66,7 +73,7 @@ class MeZOOptimizer(Optimizer):
         
         self.candidate_seeds = self.get_candidate_seeds()
         print(f"Candidate seeds: {self.candidate_seeds}")
-        
+
         if seed is None:
             seed = self.zo_random_seed
         if grad is None:
