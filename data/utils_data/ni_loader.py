@@ -142,10 +142,11 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
     data_collator = LLMDataCollator(tokenizer=tokenizer)
     
     # if only_eval, the following lines won't be executed to save time.
+    processed = 0
     if not only_eval:
         print('load train sets')
         for idx, file_name in enumerate(train_set_names):
-            if idx > args.num_clients:
+            if processed > args.num_clients:
                 break
             with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
                 raw_data = json.load(reader)
@@ -175,7 +176,9 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
                 lst_train_ds_genr.append(train_dataset_genr)
                 lst_eval_set.append(val_dataset)
                 lst_eval_set_genr.append(val_dataset_genr)
-        args.num_clients = len(lst_train_ds)
+                processed += 1
+
+        assert args.num_clients == len(lst_train_ds)
 
     # list_eval_set = []
     # for file_name in eval_set_names:
