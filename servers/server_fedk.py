@@ -87,6 +87,7 @@ class Server(object):
         print("Finished initializing the clients")
         
         for t in range(1, args.rounds + 1):
+            print(client_indices_rounds[t-1])
             selected_client = [self.client_list[i] for i in client_indices_rounds[t-1]]
             
             lst_global_metrics = []
