@@ -41,7 +41,7 @@ class MeZOOptimizer(Optimizer):
         print(f"Candidate seeds: {self.candidate_seeds}")
         self.zo_random_seed = np.random.choice(self.candidate_seeds, 1)[0]
         self.zo_eps = self.get_zoeps()
-        
+
         orig_params = {}
         for group in self.param_groups:
             for p in group['params']:
@@ -93,7 +93,7 @@ class MeZOOptimizer(Optimizer):
                 torch.manual_seed(seed)
                 z = torch.normal(mean=0, std=1, size=p.shape, device=p.device, dtype=p.dtype)
                 
-                p.grad.copy_(grad * z)
+                p.grad.copy_(grad.to(p.device) * z.to(p.device))
 
                 if weight_decay != 0:
                     p.grad.add_(weight_decay, p)
@@ -111,7 +111,7 @@ class MeZOOptimizer(Optimizer):
     def _restore_parameters(self, orig_params):
         for group in self.param_groups:
             for p in group['params']:
-                p.copy_(orig_params[p])
+                p.copy_(orig_params[p].to(p.device))
 
     # def _add_seed_pole(self, local_seed_pool):
     #     if local_seed_pool is not None:

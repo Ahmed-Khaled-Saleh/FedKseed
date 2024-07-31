@@ -183,7 +183,7 @@ class Trainer:
                 num_train = 1e-10
         print()
         print()
-        self.client.model = self.client.model.cpu()
+        # self.client.model = self.client.model.cpu()
         return acc_total_train / num_train
     
     def eval_generate(self):
