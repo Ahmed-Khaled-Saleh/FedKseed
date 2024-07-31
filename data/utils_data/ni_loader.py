@@ -146,7 +146,7 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
     if not only_eval:
         print('load train sets')
         for idx, file_name in enumerate(train_set_names):
-            if processed > args.num_clients:
+            if processed == args.num_clients:
                 break
             with open(os.path.join('./data', 'natural-instructions-2.8', 'tasks', file_name)) as reader:
                 raw_data = json.load(reader)
@@ -177,7 +177,6 @@ def get_instruction_dataset(args, tokenizer, only_eval=False):
                 lst_eval_set.append(val_dataset)
                 lst_eval_set_genr.append(val_dataset_genr)
                 processed += 1
-
         assert args.num_clients == len(lst_train_ds)
 
     # list_eval_set = []
